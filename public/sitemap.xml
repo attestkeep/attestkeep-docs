@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://docs.attestkeep.com/</loc></url>
+  <url><loc>https://docs.attestkeep.com/install/</loc></url>
+  <url><loc>https://docs.attestkeep.com/licensing/</loc></url>
+  <url><loc>https://docs.attestkeep.com/configuration/</loc></url>
+  <url><loc>https://docs.attestkeep.com/admission/</loc></url>
+  <url><loc>https://docs.attestkeep.com/air-gapped/</loc></url>
+  <url><loc>https://docs.attestkeep.com/upgrade/</loc></url>
+  <url><loc>https://docs.attestkeep.com/compliance/</loc></url>
+  <url><loc>https://docs.attestkeep.com/troubleshooting/</loc></url>
+  <url><loc>https://docs.attestkeep.com/support/</loc></url>
+</urlset>

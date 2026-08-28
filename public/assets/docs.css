@@ -1,0 +1,150 @@
+/* Documentation shell. The palette comes from tokens.css, which is a copy of
+   the one in attestkeep-ui — both derive from brand/README.md. Colours are
+   never written here as raw values. */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 16px/1.7 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.skip {
+  position: absolute; left: -9999px;
+  background: var(--accent); color: #041413; padding: 10px 16px; border-radius: 6px;
+}
+.skip:focus { left: 12px; top: 12px; z-index: 100; }
+
+a { color: var(--accent-2); }
+a:hover { color: var(--text); }
+
+/* --- top bar -------------------------------------------------------------- */
+
+.top {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 20px;
+  background: var(--bg-raise);
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+.wordmark { font: 700 19px/1 var(--disp); letter-spacing: -.015em; }
+.wordmark b { color: var(--accent-2); font-weight: 700; }
+.brand__tag {
+  font-size: 12px; color: var(--muted); border: 1px solid var(--line-2);
+  padding: 2px 7px; border-radius: 999px; letter-spacing: .04em; text-transform: uppercase;
+}
+.top__links { margin-left: auto; display: flex; gap: 18px; font-size: 14px; }
+.top__links a { color: var(--muted); text-decoration: none; }
+.top__links a:hover { color: var(--text); }
+.top__menu {
+  display: none; margin-left: auto;
+  background: transparent; color: var(--text);
+  border: 1px solid var(--line-2); border-radius: 6px; padding: 7px 12px;
+  font: 500 14px/1 var(--sans); cursor: pointer;
+}
+
+/* --- layout --------------------------------------------------------------- */
+
+.shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 0; }
+
+.sidebar {
+  border-right: 1px solid var(--line);
+  padding: 28px 20px 60px;
+  position: sticky; top: 57px; align-self: start;
+  max-height: calc(100vh - 57px); overflow-y: auto;
+}
+.sidebar h2 {
+  margin: 22px 0 8px; font: 600 12px/1 var(--sans);
+  letter-spacing: .08em; text-transform: uppercase; color: var(--faint);
+}
+.sidebar h2:first-child { margin-top: 0; }
+.sidebar ul { list-style: none; margin: 0; padding: 0; }
+.sidebar a {
+  display: block; padding: 6px 10px; margin-left: -10px;
+  border-radius: 6px; text-decoration: none; color: var(--muted); font-size: 14.5px;
+}
+.sidebar a:hover { background: var(--surface); color: var(--text); }
+.sidebar a[aria-current="page"] { background: var(--surface); color: var(--text); font-weight: 600; }
+
+/* No measure: the sidebar already bounds the column on the left, and capping
+   it again pushed every table and code block into a narrow strip with the rest
+   of a wide screen empty. */
+.content { padding: 40px clamp(24px, 4vw, 64px) 80px; }
+
+/* --- prose ---------------------------------------------------------------- */
+
+.content h1 { margin: 0 0 10px; font: 700 34px/1.15 var(--disp); letter-spacing: -.02em; }
+.content .lede { margin: 0 0 32px; color: var(--muted); font-size: 18px; }
+.content h2 {
+  margin: 44px 0 12px; font: 700 22px/1.25 var(--disp); letter-spacing: -.01em;
+  padding-top: 20px; border-top: 1px solid var(--line);
+}
+.content h3 { margin: 28px 0 8px; font: 600 17px/1.35 var(--sans); }
+.content p, .content li { color: var(--text); }
+.content ul, .content ol { padding-left: 22px; }
+.content li { margin: 6px 0; }
+.content strong { color: #fff; }
+
+/* Wide content scrolls inside its own box; the page itself never scrolls
+   sideways, which is what makes a table usable on a phone. */
+.table-wrap, pre { overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14.5px; }
+th {
+  text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line-2);
+  color: var(--faint); font: 600 12px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase;
+}
+td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+
+code {
+  font: 400 .88em/1.5 var(--mono, ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, monospace);
+  background: var(--bg-raise); border: 1px solid var(--line);
+  padding: 1px 5px; border-radius: 4px; color: var(--accent-2);
+}
+pre {
+  background: var(--bg-raise); border: 1px solid var(--line);
+  border-radius: 8px; padding: 16px 18px; margin: 18px 0;
+}
+pre code { background: none; border: 0; padding: 0; color: var(--text); font-size: 13.5px; }
+pre .s { color: var(--faint); }
+
+blockquote {
+  margin: 20px 0; padding: 14px 18px;
+  border-left: 3px solid var(--accent); background: var(--bg-raise);
+  border-radius: 0 8px 8px 0; color: var(--muted);
+}
+blockquote strong { color: var(--accent-2); }
+
+.note, .warn {
+  margin: 20px 0; padding: 14px 18px; border-radius: 8px;
+  border: 1px solid var(--line-2); background: var(--bg-raise);
+}
+.warn { border-color: var(--red); }
+.note p:first-child, .warn p:first-child { margin-top: 0; }
+.note p:last-child, .warn p:last-child { margin-bottom: 0; }
+
+.content__foot {
+  margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--line);
+  color: var(--faint); font-size: 13.5px;
+}
+.content__foot p { margin: 4px 0; }
+
+/* --- narrow --------------------------------------------------------------- */
+
+@media (max-width: 860px) {
+  .shell { grid-template-columns: 1fr; }
+  .top__links { display: none; }
+  .top__menu { display: block; }
+  .sidebar {
+    display: none; position: static; max-height: none;
+    border-right: 0; border-bottom: 1px solid var(--line);
+  }
+  .sidebar.is-open { display: block; }
+  .content { padding: 28px 20px 60px; }
+  .content h1 { font-size: 28px; }
+}

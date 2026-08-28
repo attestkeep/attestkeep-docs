@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Licensing — Attestkeep docs</title>
+<meta name="description" content="Plans, activation, cluster slots, the daily check, and exactly what leaves your cluster.">
+<link rel="canonical" href="https://docs.attestkeep.com/licensing/">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#071f20">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Licensing — Attestkeep docs">
+<meta property="og:description" content="Plans, activation, cluster slots, the daily check, and exactly what leaves your cluster.">
+<meta property="og:url" content="https://docs.attestkeep.com/licensing/">
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/img/mark-white.svg" alt="" width="26" height="26">
+    <span class="wordmark">Attest<b>keep</b></span>
+    <span class="brand__tag">docs</span>
+  </a>
+  <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  <nav class="top__links">
+    <a href="https://attestkeep.com/pricing.html">Pricing</a>
+    <a href="https://attestkeep.com/app/signin">Sign in</a>
+  </nav>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+        <h2>Start here</h2>
+    <ul>
+      <li><a href="/">Overview</a></li>
+      <li><a href="/install/">Install</a></li>
+      <li><a href="/licensing/" aria-current="page">Licensing</a></li>
+    </ul>
+    <h2>Running it</h2>
+    <ul>
+      <li><a href="/configuration/">Configuration</a></li>
+      <li><a href="/admission/">Admission</a></li>
+      <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/upgrade/">Upgrade</a></li>
+    </ul>
+    <h2>Evidence and help</h2>
+    <ul>
+      <li><a href="/compliance/">Compliance frameworks</a></li>
+      <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      <li><a href="/support/">Support and security</a></li>
+    </ul>
+  </nav>
+
+  <main class="content" id="content">
+    <h1>Licensing</h1>
+<p class="lede">One activation key per plan. Each key binds to as many clusters as the plan allows, and you can move a slot yourself.</p>
+
+<h2>Plans</h2>
+
+<p>Every capability is on in every plan. Scanning, signature verification, admission enforcement and evidence packages are complete in Community. What grows is the counts.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Plan</th><th>Per year</th><th>Clusters</th><th>Frameworks</th><th>Image names / month</th></tr></thead>
+  <tbody>
+    <tr><td>Community</td><td>free</td><td>1</td><td>1, your choice</td><td>15</td></tr>
+    <tr><td>Team</td><td>$4,800</td><td>1</td><td>1</td><td>50</td></tr>
+    <tr><td>Business</td><td>$14,400</td><td>3</td><td>3</td><td>200</td></tr>
+    <tr><td>Enterprise</td><td>from $30,000</td><td>unlimited</td><td>unlimited</td><td>set in your agreement</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Single sign-on and strict admission (<code>failurePolicy: Fail</code>, deny until scanned) are the two capabilities that are paid-only. Everything else is in Community.</p>
+
+<h2>The metered unit is the image name</h2>
+
+<p>The quota counts <strong>distinct image names</strong>: registry and repository, with the tag and digest stripped.</p>
+
+<pre><code>ghcr.io/acme/api:1.24.3     ─┐
+ghcr.io/acme/api:1.24.4      ├─ one image against the quota
+ghcr.io/acme/api@sha256:...  ─┘
+
+docker.io/library/postgres:15  ─┐
+docker.io/library/postgres:16  ─┴─ one image against the quota</code></pre>
+
+<p>Counting digests instead would punish exactly the deployment frequency this product wants to encourage: three deploys a day across five services is around 450 digests a month while running five things. So the meter counts repositories.</p>
+
+<p>Everything running in the cluster counts, third-party images included — postgres, nginx, your ingress controller, your monitoring stack. Those are where most CVEs actually come from, so scanning them is the value rather than an overhead.</p>
+
+<h3>At the limit</h3>
+
+<p>When the quota is exhausted, <strong>only new image names are denied at admission</strong>. Every image already counted this period keeps being scanned and keeps being enforced.</p>
+
+<p>The product never holds a running workload hostage over a billing threshold. A security tool that takes production down for that reason gets uninstalled, and deservedly.</p>
+
+<h2>Activation</h2>
+
+<p>Activation happens once per cluster and spends one slot. On the first run the operator generates a keypair inside the cluster, keeps the private half in a Secret, and sends only the public half with the activation request. The activation key itself travels exactly once.</p>
+
+<p>What is sent:</p>
+
+<ul>
+  <li>the activation key,</li>
+  <li>a cluster fingerprint — a hash of the <code>kube-system</code> namespace UID, not a name and not an address,</li>
+  <li>a cluster name, if you set one, purely so you can tell your own clusters apart in the panel,</li>
+  <li>the operator version.</li>
+</ul>
+
+<p>What comes back is a signed certificate valid for at most thirty days. It is verified inside the cluster against a public key built into the operator, so enforcement never waits on a network call.</p>
+
+<h2>The daily check</h2>
+
+<p>Once a day the operator sends three values — licence id, cluster fingerprint, operator version — signed with the keypair from activation. The answer is a status, and a fresh certificate only when something changed or the current one is running out.</p>
+
+<p>Nothing about your images, your workloads, your policies or your findings is sent. There is no telemetry channel and no setting that would add one.</p>
+
+<h3>Being unreachable is not being denied</h3>
+
+<p>If the licence service cannot be reached, the installation keeps running on the certificate it already holds, for that certificate's remaining term. Only a cluster with permanently no route at all cannot hold a paid licence.</p>
+
+<p>A <code>revoked</code> or <code>released</code> answer applies at the next check. There is no offline licence format and no setting that turns the check off — that is a deliberate limit, and the only thing in the product that needs a route out.</p>
+
+<h2>Cluster slots</h2>
+
+<p>Each activation holds a slot until it is released. You release one yourself, from <a href="https://attestkeep.com/app/licenses">your licences page</a> — deleting a cluster should not mean opening a support ticket to reuse the slot you paid for.</p>
+
+<p>A released slot is free immediately, and the installation that was holding it drops out at its next daily check.</p>
+
+<p>Reinstalling into the same cluster does not spend a second slot: the fingerprint is the same, so the existing slot is handed back. If you have run out, the error names the clusters that are holding your slots and when each one activated, so you can decide which to release rather than guess.</p>
+
+<h2>What the key does not do</h2>
+
+<p>The activation key is not a password and it does not authenticate a person. It does mean that anyone holding it can spend one of your cluster slots, so treat it the way you would treat a registry pull secret.</p>
+    <footer class="content__foot">
+      <p>Attestkeep — container image security for Kubernetes.</p>
+      <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>
+    </footer>
+  </main>
+</div>
+
+<script src="/assets/docs.js" defer></script>
+</body>
+</html>

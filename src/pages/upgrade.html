@@ -1,0 +1,43 @@
+<!--meta {
+  "title": "Upgrade",
+  "description": "How to upgrade, what happens to the database, and how to roll back."
+} -->
+
+<h1>Upgrade</h1>
+<p class="lede">A Helm upgrade. Migrations are compiled into the binary and applied on first connection, so there is no separate step to forget.</p>
+
+<h2>Upgrading</h2>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --namespace attestkeep --wait</code></pre>
+
+<p>Pin the version if your change process needs it:</p>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --namespace attestkeep --version 1.1.0 --wait</code></pre>
+
+<h2>What happens to the database</h2>
+
+<p>Each migration is recorded when it runs, so it runs exactly once no matter how many replicas start at the same time. Findings, decisions, exceptions and evidence survive the upgrade; nothing is rebuilt from scratch.</p>
+
+<h2>What happens to admission during the rollout</h2>
+
+<p>With the default two replicas, one keeps answering while the other is replaced. With <code>failurePolicy: Ignore</code> a moment with no replica means unreviewed rather than blocked; with <code>Fail</code> it means deployments wait. That is the same trade described in <a href="/admission/">Admission</a>, and an upgrade is exactly when it becomes visible.</p>
+
+<h2>Verifying what you are about to run</h2>
+
+<p>Every release is signed. Check it before you upgrade:</p>
+
+<pre><code>cosign verify ghcr.io/attestkeep/attestkeep-k8s:1.1.0 \
+  --certificate-identity-regexp '^https://github.com/attestkeep/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com</code></pre>
+
+<p>A product that checks your signatures should be checkable the same way. The chart is signed too, and the release page carries the digest for each artefact.</p>
+
+<h2>Rolling back</h2>
+
+<pre><code>helm rollback attestkeep --namespace attestkeep</code></pre>
+
+<div class="note">
+  <p><strong>Rolling back the chart does not roll back the schema.</strong> Migrations move forward only. A rollback across a release that changed the schema is a restore-from-backup exercise, not a Helm command, and the release notes say when that is the case.</p>
+</div>

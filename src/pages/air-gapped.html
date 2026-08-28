@@ -1,0 +1,53 @@
+<!--meta {
+  "title": "Air-gapped clusters",
+  "description": "Mirroring the vulnerability database, what signature verification means without a transparency log, and the one endpoint licensing needs."
+} -->
+
+<h1>Air-gapped clusters</h1>
+<p class="lede">Scanning works entirely inside a perimeter. Licensing needs one narrow route out, and this page is honest about it.</p>
+
+<h2>Nothing is fetched at install time</h2>
+
+<p>Trivy and Cosign are pinned into the operator image rather than downloaded when it starts. The console loads no fonts, scripts or analytics from anywhere. So an installation that can pull one image can run.</p>
+
+<h2>Mirroring the vulnerability database</h2>
+
+<p>The database comes from whichever registry <code>trivy.dbRepository</code> names. Mirror it into your own registry with the same tooling that already moves images inside the perimeter, and point the operator at it.</p>
+
+<pre><code><span class="s"># on a host that can reach both</span>
+oras copy ghcr.io/aquasecurity/trivy-db:2 \
+  registry.internal/mirror/trivy-db:2
+
+helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --namespace attestkeep \
+  --set trivy.dbRepository=registry.internal/mirror/trivy-db</code></pre>
+
+<p>Refresh the mirror on whatever schedule your change process allows. A stale database is not a broken installation — it is an installation making decisions on older information, and the evidence package records which database version a finding came from so that is visible rather than assumed.</p>
+
+<h2>Signature verification without a transparency log</h2>
+
+<p>Cosign's keyless flow checks a public transparency log, which an air-gapped cluster cannot reach. Setting <code>scan.cosignOffline</code> verifies against the key and skips that check.</p>
+
+<div class="warn">
+  <p><strong>This is a real reduction in what a signature proves.</strong> With the log, you learn that a signature exists and was publicly recorded when it was made. Without it, you learn that the artefact was signed by a key you trust. That is still worth having, and it is less. Choose it because your network requires it, not because it is simpler.</p>
+</div>
+
+<p>"Unsigned" and "could not be verified" are recorded as different answers, and your policy can treat them differently. Collapsing them would let a broken verification path look like a deliberate decision not to sign.</p>
+
+<h2>Licensing needs one route out</h2>
+
+<p>There is no offline licence format and no setting that turns the check off. What licensing needs is narrow enough to put through a proxy with a single allowed destination:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th></th><th></th></tr></thead>
+  <tbody>
+    <tr><td>Destination</td><td><code>https://lic.attestkeep.com</code>, port 443</td></tr>
+    <tr><td>Frequency</td><td>once a day, plus once at activation</td></tr>
+    <tr><td>Payload</td><td>licence id, cluster fingerprint, operator version</td></tr>
+    <tr><td>Tolerated outage</td><td>up to thirty days on the current certificate</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Community works the same way. A cluster with permanently no route at all is the one case this product cannot license, and saying so plainly is better than selling into it and disappointing later.</p>

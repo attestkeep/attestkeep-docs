@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compliance frameworks — Attestkeep docs</title>
+<meta name="description" content="Which frameworks are mapped, what an evidence package contains, and what the product does not claim.">
+<link rel="canonical" href="https://docs.attestkeep.com/compliance/">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#071f20">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Compliance frameworks — Attestkeep docs">
+<meta property="og:description" content="Which frameworks are mapped, what an evidence package contains, and what the product does not claim.">
+<meta property="og:url" content="https://docs.attestkeep.com/compliance/">
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/img/mark-white.svg" alt="" width="26" height="26">
+    <span class="wordmark">Attest<b>keep</b></span>
+    <span class="brand__tag">docs</span>
+  </a>
+  <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  <nav class="top__links">
+    <a href="https://attestkeep.com/pricing.html">Pricing</a>
+    <a href="https://attestkeep.com/app/signin">Sign in</a>
+  </nav>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+        <h2>Start here</h2>
+    <ul>
+      <li><a href="/">Overview</a></li>
+      <li><a href="/install/">Install</a></li>
+      <li><a href="/licensing/">Licensing</a></li>
+    </ul>
+    <h2>Running it</h2>
+    <ul>
+      <li><a href="/configuration/">Configuration</a></li>
+      <li><a href="/admission/">Admission</a></li>
+      <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/upgrade/">Upgrade</a></li>
+    </ul>
+    <h2>Evidence and help</h2>
+    <ul>
+      <li><a href="/compliance/" aria-current="page">Compliance frameworks</a></li>
+      <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      <li><a href="/support/">Support and security</a></li>
+    </ul>
+  </nav>
+
+  <main class="content" id="content">
+    <h1>Compliance frameworks</h1>
+<p class="lede">A framework mapping turns what the cluster did into what an auditor asked for. It does not turn either one into a certification.</p>
+
+<h2>What an evidence package contains</h2>
+
+<p>For a period you choose:</p>
+
+<ul>
+  <li>every admission decision, allows included, with the image, the digest, the reason and the policy that produced it,</li>
+  <li>the exceptions that were active, who approved each one and when it expired,</li>
+  <li>scan coverage: which digests were evaluated, against which database version, and when,</li>
+  <li>gaps, stated as gaps — periods where the webhook was not answering, or the quota was exhausted, appear as what they were.</li>
+</ul>
+
+<p>The allows matter as much as the denials. Evidence that only lists blocks can show that something was blocked; it cannot show that a control was operating.</p>
+
+<h2>Mapped frameworks</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Framework</th><th>Where it applies</th><th>Clauses mapped</th></tr></thead>
+  <tbody>
+    <tr><td>Cyber Resilience Act — Regulation (EU) 2024/2847, with NIS2 — Directive (EU) 2022/2555</td><td>EU</td><td>34</td></tr>
+    <tr><td>DORA — Regulation (EU) 2022/2554</td><td>EU financial entities</td><td>22</td></tr>
+    <tr><td>GDPR Article 32</td><td>EU</td><td>6</td></tr>
+    <tr><td>NIST SP 800-190 — Application Container Security</td><td>US</td><td>15</td></tr>
+    <tr><td>NIST SP 800-218 (SSDF v1.1)</td><td>US</td><td>13</td></tr>
+    <tr><td>NIST SP 800-53 Rev. 5 — selected CM, RA, SI, SR, AU and CP controls</td><td>US</td><td>15</td></tr>
+    <tr><td>SOC 2 — Trust Services Criteria</td><td>US, widely used elsewhere</td><td>13</td></tr>
+    <tr><td>ISO/IEC 27001:2022 — Annex A</td><td>international</td><td>12</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>The clause count is what the operator assesses, not what the instrument contains: a clause a cluster cannot answer is reported as outside scope with the reason, and those are included in the count above. NIS2 is mapped inside the CRA package because the two bind different subjects — the manufacturer and the entity — over the same evidence.</p>
+
+<p>Community includes one framework, and it is <strong>yours to choose</strong> rather than a fixed one. A company doing only ISO 27001 should not be asked to pay for a SOC 2 mapping it will never open.</p>
+
+<h2>What this does not claim</h2>
+
+<div class="note">
+  <p>A mapping is an argument, not a verdict. It says: this control text asks for evidence of X, and here is what your cluster did about X. Whether your auditor accepts it is between you and your auditor, and no tool can promise otherwise.</p>
+  <p>Container images are also one slice of any of these frameworks. None of them is satisfied by what happens at admission alone, and a product that implied otherwise would be selling a false finish line.</p>
+</div>
+
+<h2>Where the mappings come from</h2>
+
+<p>Each mapping is read from the published text of the framework and cites the clause it maps to, so you can check the reading rather than trust it. Where a clause is genuinely ambiguous about containers, the mapping says so instead of picking the flattering interpretation.</p>
+    <footer class="content__foot">
+      <p>Attestkeep — container image security for Kubernetes.</p>
+      <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>
+    </footer>
+  </main>
+</div>
+
+<script src="/assets/docs.js" defer></script>
+</body>
+</html>

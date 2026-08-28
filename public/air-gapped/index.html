@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Air-gapped clusters — Attestkeep docs</title>
+<meta name="description" content="Mirroring the vulnerability database, what signature verification means without a transparency log, and the one endpoint licensing needs.">
+<link rel="canonical" href="https://docs.attestkeep.com/air-gapped/">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#071f20">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Air-gapped clusters — Attestkeep docs">
+<meta property="og:description" content="Mirroring the vulnerability database, what signature verification means without a transparency log, and the one endpoint licensing needs.">
+<meta property="og:url" content="https://docs.attestkeep.com/air-gapped/">
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/img/mark-white.svg" alt="" width="26" height="26">
+    <span class="wordmark">Attest<b>keep</b></span>
+    <span class="brand__tag">docs</span>
+  </a>
+  <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  <nav class="top__links">
+    <a href="https://attestkeep.com/pricing.html">Pricing</a>
+    <a href="https://attestkeep.com/app/signin">Sign in</a>
+  </nav>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+        <h2>Start here</h2>
+    <ul>
+      <li><a href="/">Overview</a></li>
+      <li><a href="/install/">Install</a></li>
+      <li><a href="/licensing/">Licensing</a></li>
+    </ul>
+    <h2>Running it</h2>
+    <ul>
+      <li><a href="/configuration/">Configuration</a></li>
+      <li><a href="/admission/">Admission</a></li>
+      <li><a href="/air-gapped/" aria-current="page">Air-gapped clusters</a></li>
+      <li><a href="/upgrade/">Upgrade</a></li>
+    </ul>
+    <h2>Evidence and help</h2>
+    <ul>
+      <li><a href="/compliance/">Compliance frameworks</a></li>
+      <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      <li><a href="/support/">Support and security</a></li>
+    </ul>
+  </nav>
+
+  <main class="content" id="content">
+    <h1>Air-gapped clusters</h1>
+<p class="lede">Scanning works entirely inside a perimeter. Licensing needs one narrow route out, and this page is honest about it.</p>
+
+<h2>Nothing is fetched at install time</h2>
+
+<p>Trivy and Cosign are pinned into the operator image rather than downloaded when it starts. The console loads no fonts, scripts or analytics from anywhere. So an installation that can pull one image can run.</p>
+
+<h2>Mirroring the vulnerability database</h2>
+
+<p>The database comes from whichever registry <code>trivy.dbRepository</code> names. Mirror it into your own registry with the same tooling that already moves images inside the perimeter, and point the operator at it.</p>
+
+<pre><code><span class="s"># on a host that can reach both</span>
+oras copy ghcr.io/aquasecurity/trivy-db:2 \
+  registry.internal/mirror/trivy-db:2
+
+helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --namespace attestkeep \
+  --set trivy.dbRepository=registry.internal/mirror/trivy-db</code></pre>
+
+<p>Refresh the mirror on whatever schedule your change process allows. A stale database is not a broken installation — it is an installation making decisions on older information, and the evidence package records which database version a finding came from so that is visible rather than assumed.</p>
+
+<h2>Signature verification without a transparency log</h2>
+
+<p>Cosign's keyless flow checks a public transparency log, which an air-gapped cluster cannot reach. Setting <code>scan.cosignOffline</code> verifies against the key and skips that check.</p>
+
+<div class="warn">
+  <p><strong>This is a real reduction in what a signature proves.</strong> With the log, you learn that a signature exists and was publicly recorded when it was made. Without it, you learn that the artefact was signed by a key you trust. That is still worth having, and it is less. Choose it because your network requires it, not because it is simpler.</p>
+</div>
+
+<p>"Unsigned" and "could not be verified" are recorded as different answers, and your policy can treat them differently. Collapsing them would let a broken verification path look like a deliberate decision not to sign.</p>
+
+<h2>Licensing needs one route out</h2>
+
+<p>There is no offline licence format and no setting that turns the check off. What licensing needs is narrow enough to put through a proxy with a single allowed destination:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th></th><th></th></tr></thead>
+  <tbody>
+    <tr><td>Destination</td><td><code>https://lic.attestkeep.com</code>, port 443</td></tr>
+    <tr><td>Frequency</td><td>once a day, plus once at activation</td></tr>
+    <tr><td>Payload</td><td>licence id, cluster fingerprint, operator version</td></tr>
+    <tr><td>Tolerated outage</td><td>up to thirty days on the current certificate</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Community works the same way. A cluster with permanently no route at all is the one case this product cannot license, and saying so plainly is better than selling into it and disappointing later.</p>
+    <footer class="content__foot">
+      <p>Attestkeep — container image security for Kubernetes.</p>
+      <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>
+    </footer>
+  </main>
+</div>
+
+<script src="/assets/docs.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!--meta {
+  "title": "Troubleshooting",
+  "description": "The failures people actually hit: pods not starting, deployments blocked, activation refused, scans not finishing."
+} -->
+
+<h1>Troubleshooting</h1>
+<p class="lede">Start with the operator's own view. Most of what looks like a cluster problem is one of five things.</p>
+
+<pre><code>kubectl -n attestkeep get pods
+kubectl -n attestkeep logs deploy/attestkeep --tail=200
+kubectl -n attestkeep logs deploy/attestkeep-scanner --tail=200</code></pre>
+
+<h2>Deployments are being denied and I do not know why</h2>
+
+<p>Every denial carries a reason, and the console lists them with the policy that produced each one. The three common causes:</p>
+
+<ul>
+  <li><strong>The digest has never been scanned</strong> and <code>coldImagePolicy</code> denies unknown images. Wait for the scan or change the setting.</li>
+  <li><strong>The monthly image quota is exhausted.</strong> Only <em>new</em> image names are denied; everything already counted keeps working. The licences page shows where you are.</li>
+  <li><strong>The policy is doing its job.</strong> The reason names the severity or the missing signature. If it should be allowed, make an exception with an owner and an expiry rather than widening the policy.</li>
+</ul>
+
+<h2>Everything is being admitted and nothing is being checked</h2>
+
+<p>With <code>failurePolicy: Ignore</code>, an operator that is not answering means unreviewed rather than blocked — by design, and it looks exactly like this. Check that the webhook pods are ready and that the <code>ValidatingWebhookConfiguration</code> still exists.</p>
+
+<pre><code>kubectl get validatingwebhookconfiguration | grep attestkeep</code></pre>
+
+<h2>Activation is refused</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>What you see</th><th>What it means</th></tr></thead>
+  <tbody>
+    <tr><td>Invalid activation key</td><td>The key does not match a licence. Copy it again from the panel; the alphabet deliberately excludes the characters that get misread.</td></tr>
+    <tr><td>Cluster quota exceeded</td><td>Every slot is in use. The error names the clusters holding them and when each activated — release one from the panel.</td></tr>
+    <tr><td>Licence revoked or expired</td><td>Check the licences page. A revoked licence applies at the next daily check rather than instantly.</td></tr>
+    <tr><td>Cannot reach the licence service</td><td>Allow <code>lic.attestkeep.com</code> on port 443. See <a href="/air-gapped/">air-gapped</a>.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>The same cluster spent a second slot</h2>
+
+<p>It should not: the fingerprint is a hash of the <code>kube-system</code> namespace UID, and reinstalling into the same cluster hands the existing slot back. A genuinely rebuilt cluster is a different cluster and gets a different fingerprint — release the old slot from the panel.</p>
+
+<h2>Scans never finish</h2>
+
+<ul>
+  <li><strong>A private registry.</strong> Nothing needs configuring, but the operator can only use pull secrets the pod references or that are on its service account. A secret nothing references is invisible to it.</li>
+  <li><strong>A plain-HTTP registry.</strong> It has to be named in <code>scan.insecureRegistries</code>. Silently downgrading a connection is not a decision this product makes for you.</li>
+  <li><strong>A stale or unreachable vulnerability database.</strong> In an air-gapped cluster, check the mirror.</li>
+  <li><strong>A very large image against a 10m timeout.</strong> Raise <code>scan.timeout</code>.</li>
+</ul>
+
+<h2>A second scanner replica stays pending</h2>
+
+<p>The scan cache is a <code>ReadWriteOnce</code> volume, so it binds to one node and a second replica has nowhere to schedule. The chart refuses this combination at install; if you reached it another way, either move the cache to a <code>ReadWriteMany</code> volume or go back to one replica.</p>
+
+<h2>Reporting a problem</h2>
+
+<p>Open an issue on <a href="https://github.com/attestkeep/attestkeep-docs/issues">the public tracker</a>. Please do not paste cluster names, image references, policy contents, credentials or tokens into a public issue — a redacted log is more useful than a deleted one. For a security vulnerability use the <a href="https://attestkeep.com/security.html">disclosure process</a> instead.</p>

@@ -1,0 +1,65 @@
+<!--meta {
+  "title": "Install",
+  "description": "Install Attestkeep with Helm, set the one value that matters on the first run, and confirm it is working."
+} -->
+
+<h1>Install</h1>
+<p class="lede">One Helm command. The chart pulls straight from the registry — there is no repository to add.</p>
+
+<h2>Before you start</h2>
+
+<ul>
+  <li>Kubernetes 1.27 or newer, any conformant distribution.</li>
+  <li>Permission to create a <code>ValidatingWebhookConfiguration</code> — cluster-scoped, so cluster-admin on the first install.</li>
+  <li>A namespace of its own. The chart creates one.</li>
+  <li>Roughly 20 GiB for the bundled PostgreSQL, or the DSN of one you already run.</li>
+</ul>
+
+<h2>Install</h2>
+
+<pre><code><span class="s"># installs from the registry; no `helm repo add` needed</span>
+helm install attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --namespace attestkeep --create-namespace \
+  --set clusterName=production-eu \
+  --wait</code></pre>
+
+<p><code>clusterName</code> is the one value worth setting on the first install, even for a trial. It is the label every notification and every evidence document uses to say which installation it came from, and it cannot be inferred from the cluster. Nothing topological leaves the cluster, so this is a name you choose, not a hostname.</p>
+
+<h2>Confirm it is running</h2>
+
+<pre><code>kubectl -n attestkeep get pods
+kubectl -n attestkeep port-forward svc/attestkeep 8080:8080</code></pre>
+
+<p>Then open <code>http://localhost:8080</code>. The first screen asks for an activation key; see <a href="/licensing/">Licensing</a> for where to get one.</p>
+
+<h2>The database builds itself</h2>
+
+<p>Migrations are compiled into the binary and applied on first connection, each recorded so it runs exactly once. There is no SQL for you to run and no migration step to forget on upgrade.</p>
+
+<p>To use a database you already run, put the DSN in a secret rather than on the command line — an inline value lands in your Helm release history and stays there.</p>
+
+<pre><code>kubectl -n attestkeep create secret generic attestkeep-db \
+  --from-literal=dsn='postgres://user:pass@db.internal:5432/attestkeep?sslmode=require'
+
+helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --namespace attestkeep \
+  --set postgresql.enabled=false \
+  --set externalDsnExistingSecret.name=attestkeep-db</code></pre>
+
+<h2>Private registries</h2>
+
+<p>Nothing to configure. The operator resolves the same image pull secrets the pod references, and those on its service account, and uses them for both the scan and the signature check.</p>
+
+<h2>High availability</h2>
+
+<p>The webhook runs two replicas by default, spread across nodes by anti-affinity: one is enough to serve, two to survive a node. The serving certificate lives in a secret rather than on each replica, so a rotation reaches every replica without a restart.</p>
+
+<div class="note">
+  <p><strong>Scanner replicas and volume access mode.</strong> Raising <code>scanner.replicas</code> above one while the scan cache is a <code>ReadWriteOnce</code> volume is refused at install. The volume binds to a single node, so the second replica would never schedule — better to fail at install than to leave a pod pending and let you find out later.</p>
+</div>
+
+<h2>Uninstall</h2>
+
+<pre><code>helm uninstall attestkeep --namespace attestkeep</code></pre>
+
+<p>Removing the release removes the webhook configuration with it, so admission stops being reviewed the moment it is gone. The database volume is not deleted; findings and evidence survive an uninstall unless you remove the PVC yourself.</p>

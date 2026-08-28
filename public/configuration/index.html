@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configuration — Attestkeep docs</title>
+<meta name="description" content="The Helm values that matter, what each one changes, and which settings live in the console instead.">
+<link rel="canonical" href="https://docs.attestkeep.com/configuration/">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#071f20">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Configuration — Attestkeep docs">
+<meta property="og:description" content="The Helm values that matter, what each one changes, and which settings live in the console instead.">
+<meta property="og:url" content="https://docs.attestkeep.com/configuration/">
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/img/mark-white.svg" alt="" width="26" height="26">
+    <span class="wordmark">Attest<b>keep</b></span>
+    <span class="brand__tag">docs</span>
+  </a>
+  <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  <nav class="top__links">
+    <a href="https://attestkeep.com/pricing.html">Pricing</a>
+    <a href="https://attestkeep.com/app/signin">Sign in</a>
+  </nav>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+        <h2>Start here</h2>
+    <ul>
+      <li><a href="/">Overview</a></li>
+      <li><a href="/install/">Install</a></li>
+      <li><a href="/licensing/">Licensing</a></li>
+    </ul>
+    <h2>Running it</h2>
+    <ul>
+      <li><a href="/configuration/" aria-current="page">Configuration</a></li>
+      <li><a href="/admission/">Admission</a></li>
+      <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/upgrade/">Upgrade</a></li>
+    </ul>
+    <h2>Evidence and help</h2>
+    <ul>
+      <li><a href="/compliance/">Compliance frameworks</a></li>
+      <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      <li><a href="/support/">Support and security</a></li>
+    </ul>
+  </nav>
+
+  <main class="content" id="content">
+    <h1>Configuration</h1>
+<p class="lede">Installation shape comes from Helm values. Anything a person changes while running it lives in the console, so a policy edit is not a redeploy.</p>
+
+<h2>Identity and scale</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Value</th><th>Default</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>clusterName</code></td><td><code>""</code></td><td>Names this installation in notifications and evidence. Never a hostname — nothing topological leaves the cluster.</td></tr>
+    <tr><td><code>replicaCount</code></td><td><code>2</code></td><td>Webhook replicas, spread by anti-affinity. One serves, two survive a node.</td></tr>
+    <tr><td><code>scanner.replicas</code></td><td><code>1</code></td><td>Scan workers. Raising this with a <code>ReadWriteOnce</code> cache is refused at install.</td></tr>
+    <tr><td><code>image.repository</code></td><td><code>ghcr.io/attestkeep/attestkeep-k8s</code></td><td>Point at your mirror for an air-gapped install.</td></tr>
+    <tr><td><code>image.tag</code></td><td>chart appVersion</td><td></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Database</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Value</th><th>Default</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>postgresql.enabled</code></td><td><code>true</code></td><td>Install a PostgreSQL alongside. Turn off to use your own.</td></tr>
+    <tr><td><code>postgresql.persistence.size</code></td><td><code>20Gi</code></td><td></td></tr>
+    <tr><td><code>postgresql.auth.password</code></td><td><code>""</code></td><td>Generated when empty.</td></tr>
+    <tr><td><code>externalDsnExistingSecret.name</code></td><td><code>""</code></td><td><strong>Preferred</strong> for an external database.</td></tr>
+    <tr><td><code>externalDsn</code></td><td><code>""</code></td><td>A DSN inline. Avoid: it lands in your Helm release history and stays there.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Scanning</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Value</th><th>Default</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>scan.workers</code></td><td><code>2</code></td><td>Concurrent scans per scanner pod.</td></tr>
+    <tr><td><code>scan.timeout</code></td><td><code>10m</code></td><td>Per scan.</td></tr>
+    <tr><td><code>scan.rescanInterval</code></td><td><code>24h</code></td><td>How often a known digest is re-evaluated against a refreshed database.</td></tr>
+    <tr><td><code>scan.insecureRegistries</code></td><td><code>[]</code></td><td>Registries served over plain HTTP. Must be named — silently downgrading a connection is not a decision a security tool makes for you.</td></tr>
+    <tr><td><code>scan.cosignOffline</code></td><td><code>false</code></td><td>Verify against the key and skip the transparency log. See <a href="/air-gapped/">air-gapped</a> for what that costs.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Admission</h2>
+
+<p>See <a href="/admission/">Admission</a> — <code>webhook.failurePolicy</code> and <code>webhook.coldImagePolicy</code> are posture decisions rather than tuning, and they are explained there rather than listed here.</p>
+
+<h2>Observability</h2>
+
+<p>Metrics are exposed in Prometheus format on the operator's metrics port, and labelled series are created at zero on start-up so a dashboard is not empty until the first event. OTLP export is available and is always additional: if the collector is unreachable, nothing about scanning or admission changes.</p>
+
+<p>The log level is a runtime control in the console, not a deployment setting. Turning up logging to diagnose something should not require a rollout.</p>
+
+<h2>What lives in the console instead</h2>
+
+<ul>
+  <li>Policies, and the exceptions to them, with an owner and an expiry.</li>
+  <li>Notification destinations.</li>
+  <li>Users and single sign-on.</li>
+  <li>Log level.</li>
+  <li>Evidence packages.</li>
+</ul>
+
+<p>The dividing line: a Helm value describes how the installation is shaped, and everything a person changes while operating it belongs where they can change it without a deploy.</p>
+    <footer class="content__foot">
+      <p>Attestkeep — container image security for Kubernetes.</p>
+      <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>
+    </footer>
+  </main>
+</div>
+
+<script src="/assets/docs.js" defer></script>
+</body>
+</html>

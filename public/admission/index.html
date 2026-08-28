@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admission — Attestkeep docs</title>
+<meta name="description" content="How an admission decision is made, and the two settings that decide your posture when something is unknown or the operator is down.">
+<link rel="canonical" href="https://docs.attestkeep.com/admission/">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#071f20">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Admission — Attestkeep docs">
+<meta property="og:description" content="How an admission decision is made, and the two settings that decide your posture when something is unknown or the operator is down.">
+<meta property="og:url" content="https://docs.attestkeep.com/admission/">
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/img/mark-white.svg" alt="" width="26" height="26">
+    <span class="wordmark">Attest<b>keep</b></span>
+    <span class="brand__tag">docs</span>
+  </a>
+  <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  <nav class="top__links">
+    <a href="https://attestkeep.com/pricing.html">Pricing</a>
+    <a href="https://attestkeep.com/app/signin">Sign in</a>
+  </nav>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+        <h2>Start here</h2>
+    <ul>
+      <li><a href="/">Overview</a></li>
+      <li><a href="/install/">Install</a></li>
+      <li><a href="/licensing/">Licensing</a></li>
+    </ul>
+    <h2>Running it</h2>
+    <ul>
+      <li><a href="/configuration/">Configuration</a></li>
+      <li><a href="/admission/" aria-current="page">Admission</a></li>
+      <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/upgrade/">Upgrade</a></li>
+    </ul>
+    <h2>Evidence and help</h2>
+    <ul>
+      <li><a href="/compliance/">Compliance frameworks</a></li>
+      <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      <li><a href="/support/">Support and security</a></li>
+    </ul>
+  </nav>
+
+  <main class="content" id="content">
+    <h1>Admission</h1>
+<p class="lede">The webhook answers from cache. Scanning never runs in the admission path, which is why a slow registry cannot slow down a deployment.</p>
+
+<h2>How a decision is made</h2>
+
+<ol>
+  <li>The API server asks about a pod.</li>
+  <li>The tag is resolved to a digest. That resolution is cached for a minute, so a burst of identical deployments makes one registry call rather than a hundred.</li>
+  <li>The digest's scan result and signature verdict are read from cache.</li>
+  <li>The policy is evaluated against them and the answer is allow or deny, with a reason.</li>
+  <li>The decision is recorded — including the allows, because evidence that only lists denials cannot show a control was operating.</li>
+</ol>
+
+<p>Nothing in that list waits on a scan. If the digest has never been seen, step three has no answer, and what happens next is the setting below.</p>
+
+<h2>The two settings that decide your posture</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Value</th><th>Default</th><th>What it means</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>webhook.failurePolicy</code></td><td><code>Ignore</code></td>
+      <td>What the API server does when the operator does not answer. <code>Ignore</code> means an outage leaves you unguarded, never blocked. <code>Fail</code> denies until the operator answers.</td>
+    </tr>
+    <tr>
+      <td><code>webhook.coldImagePolicy</code></td><td><code>allowAndScan</code></td>
+      <td>What happens to a digest never seen before. The alternative denies it and scans it, which is <code>Fail</code>'s natural companion.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>These two are the whole posture decision, and the honest framing is that neither answer is universally right.</p>
+
+<blockquote>
+  <p><strong>Ignore</strong> keeps your cluster deployable during an outage of ours and leaves a gap in the evidence: for that window nothing was reviewed, and the evidence package says so rather than quietly showing a clean quarter.</p>
+  <p><strong>Fail</strong> gives you a control that provably never had a gap, and it means an operator outage stops deployments. That is a real cost and you should choose it on purpose, not inherit it.</p>
+</blockquote>
+
+<p><code>Fail</code> and deny-on-cold are paid capabilities. They are not withheld to make Community weaker for its own sake — they are the posture that needs someone answerable when it blocks a deployment at two in the morning.</p>
+
+<h2>Exemptions</h2>
+
+<p><code>webhook.bypassNamespaces</code> lists namespaces admission does not review. The operator's own namespace is always exempt, because a webhook that can block its own replacement pod is a webhook that can lock you out of fixing it.</p>
+
+<p>Per-workload exceptions are not a chart value. They are made in the console, with an owner and an expiry, because an exception nobody approved and nothing expires is indistinguishable from a policy hole — and an auditor will read it as one.</p>
+
+<h2>Timeouts</h2>
+
+<p><code>webhook.timeoutSeconds</code> defaults to 15. Since admission decides from cache, that is a ceiling rather than a budget: the normal answer is milliseconds, and the timeout exists for the pathological case rather than the usual one.</p>
+
+<h2>Serving certificate</h2>
+
+<p>By default the operator issues and rotates its own webhook certificate, and every replica picks up a new one without a restart — the pair lives in a Secret, not on each pod. Set <code>webhook.tls.certManager.enabled</code> if you would rather cert-manager owned it.</p>
+    <footer class="content__foot">
+      <p>Attestkeep — container image security for Kubernetes.</p>
+      <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>
+    </footer>
+  </main>
+</div>
+
+<script src="/assets/docs.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overview — Attestkeep docs</title>
+<meta name="description" content="What Attestkeep does inside your cluster, how admission decisions are made, and where to start.">
+<link rel="canonical" href="https://docs.attestkeep.com/">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#071f20">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Overview — Attestkeep docs">
+<meta property="og:description" content="What Attestkeep does inside your cluster, how admission decisions are made, and where to start.">
+<meta property="og:url" content="https://docs.attestkeep.com/">
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/img/mark-white.svg" alt="" width="26" height="26">
+    <span class="wordmark">Attest<b>keep</b></span>
+    <span class="brand__tag">docs</span>
+  </a>
+  <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  <nav class="top__links">
+    <a href="https://attestkeep.com/pricing.html">Pricing</a>
+    <a href="https://attestkeep.com/app/signin">Sign in</a>
+  </nav>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+        <h2>Start here</h2>
+    <ul>
+      <li><a href="/" aria-current="page">Overview</a></li>
+      <li><a href="/install/">Install</a></li>
+      <li><a href="/licensing/">Licensing</a></li>
+    </ul>
+    <h2>Running it</h2>
+    <ul>
+      <li><a href="/configuration/">Configuration</a></li>
+      <li><a href="/admission/">Admission</a></li>
+      <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/upgrade/">Upgrade</a></li>
+    </ul>
+    <h2>Evidence and help</h2>
+    <ul>
+      <li><a href="/compliance/">Compliance frameworks</a></li>
+      <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      <li><a href="/support/">Support and security</a></li>
+    </ul>
+  </nav>
+
+  <main class="content" id="content">
+    <h1>Attestkeep</h1>
+<p class="lede">Container image security for Kubernetes: scan, verify signatures, decide at admission, and keep the evidence that it happened.</p>
+
+<p>Attestkeep runs entirely inside your cluster. It scans the images your workloads use, verifies their signatures and attestations, and answers the API server at admission time — allow or deny, according to a policy you wrote. Every decision is recorded, and those records are what an auditor is actually asking for.</p>
+
+<h2>What it is made of</h2>
+
+<table>
+  <thead><tr><th>Part</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td>Admission webhook</td><td>Answers the API server on every pod creation. Decides from cache — never scans in the admission path.</td></tr>
+    <tr><td>Scanner</td><td>Pulls and scans image digests in the background, on a schedule and on first sight.</td></tr>
+    <tr><td>Console</td><td>Policies, findings, exceptions, evidence packages.</td></tr>
+    <tr><td>PostgreSQL</td><td>Findings, policy, decisions and evidence. Installed alongside, or bring your own.</td></tr>
+  </tbody>
+</table>
+
+<h2>Admission is cache-first</h2>
+
+<p>Scanning takes minutes; the API server waits seconds. So the two are never in the same path. The scanner fills a cache in the background and the webhook reads it, which is why a slow registry cannot slow down a deployment.</p>
+
+<p>The consequence worth understanding before you install: a digest nobody has seen before has no scan result yet. What happens to it is <a href="/admission/">a policy decision you make</a>, and the default is to admit it and scan it immediately rather than block a deployment on a cold cache.</p>
+
+<h2>Nothing is fetched from outside your installation</h2>
+
+<p>Trivy and Cosign are built into the image rather than downloaded at install time. The console loads no fonts, scripts or analytics from anywhere. The vulnerability database comes from whichever registry you point it at — by default a public one, and in an air-gapped cluster your own mirror.</p>
+
+<p>The single exception is licensing, and it is deliberately narrow: one endpoint, once a day, carrying three values. See <a href="/licensing/">Licensing</a> for exactly what leaves the cluster and what happens when it cannot.</p>
+
+<h2>Where to go next</h2>
+
+<ul>
+  <li><a href="/install/">Install</a> — one Helm command, and the one value worth setting on the first run.</li>
+  <li><a href="/licensing/">Licensing</a> — plans, cluster slots, the daily check, and what happens offline.</li>
+  <li><a href="/admission/">Admission</a> — how a decision is made, and the two settings that change your posture.</li>
+  <li><a href="/air-gapped/">Air-gapped clusters</a> — mirroring the database and what signature verification means without a transparency log.</li>
+</ul>
+
+<div class="note">
+  <p><strong>Not released yet.</strong> Attestkeep has not shipped a version. These pages describe the product as it is being built, and the install commands become real with the first release. Nothing here is a promise about a date.</p>
+</div>
+    <footer class="content__foot">
+      <p>Attestkeep — container image security for Kubernetes.</p>
+      <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>
+    </footer>
+  </main>
+</div>
+
+<script src="/assets/docs.js" defer></script>
+</body>
+</html>

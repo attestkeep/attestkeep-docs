@@ -1,0 +1,11 @@
+{
+  "name": "attestkeep-docs",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Attestkeep documentation — static, no build step",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/render.mjs && node scripts/check.mjs",
+    "check": "node scripts/check.mjs"
+  }
+}
