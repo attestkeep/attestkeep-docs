@@ -3,26 +3,60 @@
     {
       "title": "Start here",
       "pages": [
-        { "slug": "index", "title": "Overview" },
-        { "slug": "install", "title": "Install" },
-        { "slug": "licensing", "title": "Licensing" }
+        {
+          "slug": "index",
+          "title": "Overview"
+        },
+        {
+          "slug": "install",
+          "title": "Install"
+        },
+        {
+          "slug": "licensing",
+          "title": "Licensing"
+        }
       ]
     },
     {
       "title": "Running it",
       "pages": [
-        { "slug": "configuration", "title": "Configuration" },
-        { "slug": "admission", "title": "Admission" },
-        { "slug": "air-gapped", "title": "Air-gapped clusters" },
-        { "slug": "upgrade", "title": "Upgrade" }
+        {
+          "slug": "configuration",
+          "title": "Configuration"
+        },
+        {
+          "slug": "admission",
+          "title": "Admission"
+        },
+        {
+          "slug": "air-gapped",
+          "title": "Air-gapped clusters"
+        },
+        {
+          "slug": "upgrade",
+          "title": "Upgrade"
+        }
       ]
     },
     {
       "title": "Evidence and help",
       "pages": [
-        { "slug": "compliance", "title": "Compliance frameworks" },
-        { "slug": "troubleshooting", "title": "Troubleshooting" },
-        { "slug": "support", "title": "Support and security" }
+        {
+          "slug": "compliance",
+          "title": "Compliance frameworks"
+        },
+        {
+          "slug": "verifying-reports",
+          "title": "Verifying a report"
+        },
+        {
+          "slug": "troubleshooting",
+          "title": "Troubleshooting"
+        },
+        {
+          "slug": "support",
+          "title": "Support and security"
+        }
       ]
     }
   ]

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verifying a report — Attestkeep docs</title>
+<meta name="description" content="How to check that an Attestkeep compliance report is unaltered and came from the installation it names, using your own tools rather than ours.">
+<link rel="canonical" href="https://docs.attestkeep.com/verifying-reports/">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#071f20">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Verifying a report — Attestkeep docs">
+<meta property="og:description" content="How to check that an Attestkeep compliance report is unaltered and came from the installation it names, using your own tools rather than ours.">
+<meta property="og:url" content="https://docs.attestkeep.com/verifying-reports/">
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/img/mark-white.svg" alt="" width="26" height="26">
+    <span class="wordmark">Attest<b>keep</b></span>
+    <span class="brand__tag">docs</span>
+  </a>
+  <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  <nav class="top__links">
+    <a href="https://attestkeep.com/pricing.html">Pricing</a>
+    <a href="https://attestkeep.com/app/signin">Sign in</a>
+  </nav>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+        <h2>Start here</h2>
+    <ul>
+      <li><a href="/">Overview</a></li>
+      <li><a href="/install/">Install</a></li>
+      <li><a href="/licensing/">Licensing</a></li>
+    </ul>
+    <h2>Running it</h2>
+    <ul>
+      <li><a href="/configuration/">Configuration</a></li>
+      <li><a href="/admission/">Admission</a></li>
+      <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/upgrade/">Upgrade</a></li>
+    </ul>
+    <h2>Evidence and help</h2>
+    <ul>
+      <li><a href="/compliance/">Compliance frameworks</a></li>
+      <li><a href="/verifying-reports/" aria-current="page">Verifying a report</a></li>
+      <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      <li><a href="/support/">Support and security</a></li>
+    </ul>
+  </nav>
+
+  <main class="content" id="content">
+    <h1>Verifying a report</h1>
+<p class="lede">A compliance report is signed by the cluster that produced it. This page is how someone who has never heard of us checks that signature, without asking us anything.</p>
+
+<h2>What the signature claims</h2>
+
+<p>Exactly two things, and it is worth being precise because the value of the claim is in its narrowness:</p>
+
+<ul>
+  <li>the report has not changed since it was signed &mdash; alter one character, even inside a timestamp, and the check fails;</li>
+  <li>it was signed by a key that Attestkeep vouched for as belonging to that installation.</li>
+</ul>
+
+<p>Two things it does <strong>not</strong> claim. It is not a legal electronic signature: no qualified certificate is involved and no e-signature statute applies to it. And it does not prove <em>when</em> the report was signed &mdash; the timestamps are the installation&rsquo;s own declaration, read from its own clock, with no timestamping authority involved. If your process needs the time proven, that proof has to come from elsewhere.</p>
+
+<p>The signature also vouches for the document, not for the world. It proves the report is exactly what that installation produced. It does not prove that the events the report describes happened as described.</p>
+
+<h2>The three files</h2>
+
+<p>An operator hands you three things, all from the evidence screen in their console:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>File</th><th>What it is</th></tr></thead>
+  <tbody>
+    <tr><td><code>&lt;report-id&gt;.json</code></td><td>The report, byte for byte as it was signed. Downloaded from <code>/document</code>, not from <code>/download</code> &mdash; the second wraps the report in metadata for reading and is therefore a different sequence of bytes.</td></tr>
+    <tr><td><code>&lt;report-id&gt;.intoto.jsonl</code></td><td>The attestation: a DSSE envelope carrying an in-toto statement about the report.</td></tr>
+    <tr><td>the licence certificate</td><td>A compact JWT, signed by Attestkeep, naming the installation and the key it signs with.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>The chain</h2>
+
+<p>You trust one key. Everything else follows from it.</p>
+
+<ol>
+  <li>Attestkeep&rsquo;s signing key (below) verifies the <strong>certificate</strong>.</li>
+  <li>The certificate&rsquo;s <code>cnf.jwk</code> claim names the <strong>installation&rsquo;s key</strong>.</li>
+  <li>That key verifies the <strong>attestation</strong>.</li>
+  <li>The attestation&rsquo;s subject digest matches the <strong>report</strong>.</li>
+</ol>
+
+<p>The middle step is the one that matters. Without it you would have to be handed a public key by the same person handing you the report, and a forger would simply supply both: a key they made, and a report they signed with it. The certificate breaks that, because it is signed by a key the customer does not hold.</p>
+
+<p>One cross-check belongs in any verifier: the <code>installation.fingerprint</code> in the attestation must equal the <code>fpr</code> claim in the certificate. Otherwise a genuine certificate can be presented alongside an attestation from a different installation.</p>
+
+<h2>Attestkeep&rsquo;s signing key</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Key id</th><th>Algorithm</th><th>Public key (hex)</th></tr></thead>
+  <tbody>
+    <tr><td><code>ak1</code></td><td>Ed25519</td><td><code>e287aabe4712197cfa5b6fdf9ea8f2d7f0333ce16ca69aac7e4a3f1e84c04179</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>This is the one value you must obtain from a source you trust rather than from the documents themselves. There are two independent places to read it: this page, and any Attestkeep installation &mdash; the same key is compiled into every operator binary, so a customer can read it out of their own cluster and compare it with what is printed here. A key that appeared in only one of those two places would be worth asking about.</p>
+
+<h2>The easy way</h2>
+
+<p><a href="https://attestkeep.com/verify.html">attestkeep.com/verify.html</a> does all of this in the browser. The page carries the key above and the arithmetic; nothing is uploaded, and you can disconnect from the network after loading it and get the same answer. It is a convenience, not the authority &mdash; which is the point of publishing the format at all.</p>
+
+<h2>Doing it yourself</h2>
+
+<p>The format is <a href="https://github.com/secure-systems-lab/dsse">DSSE</a> carrying an <a href="https://github.com/in-toto/attestation">in-toto</a> statement, both public specifications, so any tool that reads them can read ours. The predicate is documented field by field at <a href="https://attestkeep.com/attestation/compliance-evidence/v1">attestkeep.com/attestation/compliance-evidence/v1</a>.</p>
+
+<p>What DSSE signs is not the payload but its pre-authentication encoding, which binds the payload to its type so a signature cannot be replayed under a different one:</p>
+
+<pre><code>PAE = "DSSEv1" SP LEN(payloadType) SP payloadType SP LEN(payload) SP payload</code></pre>
+
+<p>where SP is one space and LEN is the length in <em>bytes</em>, in decimal. The script below is the whole verification, and it is short on purpose: you should be able to read it and satisfy yourself that the answer does not depend on us.</p>
+
+<pre><code>#!/usr/bin/env python3
+# Verify an Attestkeep compliance report. Standard library plus `cryptography`.
+#   python3 verify-report.py report.json attestation.json certificate.jwt
+import base64, hashlib, json, sys
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from cryptography.exceptions import InvalidSignature
+
+ROOT_KEY_HEX = &quot;e287aabe4712197cfa5b6fdf9ea8f2d7f0333ce16ca69aac7e4a3f1e84c04179&quot;
+PREDICATE_TYPE = &quot;https://attestkeep.com/attestation/compliance-evidence/v1&quot;
+
+def check(key_hex, message, signature):
+    try:
+        Ed25519PublicKey.from_public_bytes(bytes.fromhex(key_hex)).verify(signature, message)
+        return True
+    except (InvalidSignature, ValueError):
+        return False
+
+def b64url(s): return base64.urlsafe_b64decode(s + &quot;=&quot; * (-len(s) % 4))
+def die(m): sys.exit(&quot;REJECTED: &quot; + m)
+
+report = open(sys.argv[1], &quot;rb&quot;).read()
+envelope = json.load(open(sys.argv[2]))
+head_b64, body_b64, sig_b64 = open(sys.argv[3]).read().strip().split(&quot;.&quot;)
+
+# 1. Our key signed the certificate, so what it says about the cluster&#x27;s key is
+#    not something the cluster could have decided for itself.
+if json.loads(b64url(head_b64)).get(&quot;alg&quot;) != &quot;EdDSA&quot;:
+    die(&quot;certificate algorithm is not EdDSA&quot;)
+if not check(ROOT_KEY_HEX, (head_b64 + &quot;.&quot; + body_b64).encode(), b64url(sig_b64)):
+    die(&quot;the certificate was not signed by Attestkeep&quot;)
+claims = json.loads(b64url(body_b64))
+installation_key = (claims.get(&quot;cnf&quot;) or {}).get(&quot;jwk&quot;, &quot;&quot;)
+if len(installation_key) != 64:
+    die(&quot;the certificate names no installation key&quot;)
+
+# 2. The envelope, against the key the certificate named. DSSE signs the
+#    pre-authentication encoding, which binds the payload to its type.
+payload = base64.b64decode(envelope[&quot;payload&quot;])
+ptype = envelope[&quot;payloadType&quot;].encode()
+pae = b&quot;DSSEv1 %d %s %d %s&quot; % (len(ptype), ptype, len(payload), payload)
+if not any(check(installation_key, pae, base64.b64decode(s[&quot;sig&quot;]))
+           for s in envelope[&quot;signatures&quot;]):
+    die(&quot;no signature was made by the key the certificate names&quot;)
+statement = json.loads(payload)
+if statement[&quot;predicateType&quot;] != PREDICATE_TYPE:
+    die(&quot;not a compliance evidence attestation&quot;)
+
+# 3. Both halves must describe the same installation, or a genuine certificate
+#    could be presented alongside an attestation from somewhere else.
+if statement[&quot;predicate&quot;][&quot;installation&quot;][&quot;fingerprint&quot;] != claims.get(&quot;fpr&quot;):
+    die(&quot;the attestation and the certificate describe different installations&quot;)
+
+# 4. And the report in your hands must be the one that was signed.
+if statement[&quot;subject&quot;][0][&quot;digest&quot;][&quot;sha256&quot;] != hashlib.sha256(report).hexdigest():
+    die(&quot;this report is not the one the attestation covers&quot;)
+
+p = statement[&quot;predicate&quot;]
+print(&quot;VERIFIED&quot;, statement[&quot;subject&quot;][0][&quot;name&quot;])
+print(&quot;  framework   &quot;, p[&quot;framework&quot;])
+print(&quot;  period      &quot;, p[&quot;period&quot;][&quot;start&quot;], &quot;-&gt;&quot;, p[&quot;period&quot;][&quot;end&quot;])
+print(&quot;  installation&quot;, p[&quot;installation&quot;][&quot;fingerprint&quot;])
+print(&quot;  generated   &quot;, p[&quot;generated_at&quot;], &quot;by&quot;, p.get(&quot;generated_by&quot;, &quot;-&quot;))</code></pre>
+
+<p>Run it against the three files:</p>
+
+<pre><code>python3 verify-report.py report.json attestation.json certificate.jwt</code></pre>
+
+<p>A pass prints the report identity, framework, period and installation. Any failure prints why and exits non-zero: a report that does not match its attestation, an attestation not signed by the key the certificate names, a certificate not signed by us, or a certificate and attestation describing different installations.</p>
+
+<h2>Certificates expire; reports do not</h2>
+
+<p>A licence certificate is short-lived by design &mdash; it rotates every thirty days, which is what stops an unreachable licence server from keeping a lapsed licence alive. A verifier should therefore <strong>not</strong> reject an expired certificate: it was valid when it vouched for the key, and the report it covers is from that period. Check the expiry, report it, and let the reader weigh it. Refusing outright would make every report older than a month unverifiable, which is the opposite of the point.</p>
+    <footer class="content__foot">
+      <p>Attestkeep — container image security for Kubernetes.</p>
+      <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>
+    </footer>
+  </main>
+</div>
+
+<script src="/assets/docs.js" defer></script>
+</body>
+</html>
