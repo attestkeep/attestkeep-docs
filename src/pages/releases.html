@@ -1,0 +1,43 @@
+<!--meta {
+  "title": "Releases",
+  "description": "Every published version of Attestkeep, what it carries, and how to verify that what you pulled is what we shipped."
+} -->
+
+<h1>Releases</h1>
+<p class="lede">Every version we publish, newest first. Each release is one image digest pushed to GHCR, signed twice on that digest, with the chart published alongside it.</p>
+
+<h2>How releases are signed</h2>
+
+<p>Every release carries two signatures over the same image digest, and they answer different questions.</p>
+
+<ul>
+  <li><strong>Keyless</strong>, through GitHub's OIDC: proves this exact digest was built by the release workflow, on this tag, in this repository, and records it in the public transparency log. The stronger claim — check it when you have internet.</li>
+  <li><strong>Keyed</strong>, against <code>cosign.pub</code> from the repository root: verifies with nothing beyond your registry. This one exists for air-gapped clusters, which cannot reach the transparency log at all.</li>
+</ul>
+
+<pre><code><span class="s"># keyed — works offline, cosign.pub ships in the repository root and the chart</span>
+cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.1.0
+
+<span class="s"># both checks together — the same script the release pipeline runs on itself</span>
+./scripts/verify-release.sh ghcr.io/attestkeep/attestkeep-k8s:0.1.0 cosign.pub</code></pre>
+
+<p>Always verify the digest, not the tag: a tag can be moved to different content after it was signed, a digest cannot. This is the same argument the product makes to your own cluster in <code>digestEnforcement</code>.</p>
+
+<h2>v0.1.0</h2>
+
+<p>2026-08-30 — the first published release.</p>
+
+<ul>
+  <li>Admission webhook: image scanning verdicts, severity gates, <code>:latest</code> refusal, digest enforcement, registry allow-lists, workload hardening, break-glass with expiry.</li>
+  <li>Scan pipeline: Trivy-backed scanning with a PostgreSQL work queue, cosign signature and attestation checks, rate-limit-aware retry.</li>
+  <li>Evidence: signed compliance packages (DSSE, in-toto Statement v1) mapped onto eight frameworks — SOC 2, ISO/IEC 27001:2022, NIST SP 800-53, NIST SP 800-190, SSDF, DORA, EU CRA+NIS2, GDPR Article 32 — verifiable in a browser with nothing installed.</li>
+  <li>Console: images, policies, findings, triage, evidence, notifications, licensing.</li>
+</ul>
+
+<pre><code>helm install attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 0.1.0 \
+  --namespace attestkeep --create-namespace \
+  --set clusterName=production-eu \
+  --wait</code></pre>
+
+<p>Release notes, the SBOM and <code>cosign.pub</code> are attached to the <a href="https://github.com/attestkeep/attestkeep-k8s/releases/tag/v0.1.0">GitHub release</a>.</p>

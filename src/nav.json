@@ -60,6 +60,10 @@
         {
           "slug": "support",
           "title": "Support and security"
+        },
+        {
+          "slug": "releases",
+          "title": "Releases"
         }
       ]
     }

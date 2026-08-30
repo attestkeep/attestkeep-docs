@@ -15,6 +15,12 @@
   <li>Roughly 20 GiB for the bundled PostgreSQL, or the DSN of one you already run.</li>
 </ul>
 
+<h2>Verify before you install</h2>
+
+<p>Every release is signed on its digest. The keyed check needs nothing beyond your registry and the public key from the repository root; see <a href="/releases/">Releases</a> for the keyless check and what each one proves.</p>
+
+<pre><code>cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.1.0</code></pre>
+
 <h2>Install</h2>
 
 <pre><code><span class="s"># installs from the registry; no `helm repo add` needed</span>
