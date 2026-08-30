@@ -42,7 +42,7 @@
   <li>Attestkeep&rsquo;s signing key (below) verifies the <strong>certificate</strong>.</li>
   <li>The certificate&rsquo;s <code>cnf.jwk</code> claim names the <strong>installation&rsquo;s key</strong>.</li>
   <li>That key verifies the <strong>attestation</strong>.</li>
-  <li>The attestation&rsquo;s subject digest matches the <strong>report</strong>.</li>
+  <li>The file you hold is one the attestation names. The subject is a list: the report and the PDF rendering are both covered by the same signature.</li>
 </ol>
 
 <p>The middle step is the one that matters. Without it you would have to be handed a public key by the same person handing you the report, and a forger would simply supply both: a key they made, and a report they signed with it. The certificate breaks that, because it is signed by a key the customer does not hold.</p>
@@ -128,12 +128,17 @@ if statement[&quot;predicateType&quot;] != PREDICATE_TYPE:
 if statement[&quot;predicate&quot;][&quot;installation&quot;][&quot;fingerprint&quot;] != claims.get(&quot;fpr&quot;):
     die(&quot;the attestation and the certificate describe different installations&quot;)
 
-# 4. And the report in your hands must be the one that was signed.
-if statement[&quot;subject&quot;][0][&quot;digest&quot;][&quot;sha256&quot;] != hashlib.sha256(report).hexdigest():
-    die(&quot;this report is not the one the attestation covers&quot;)
+# 4. And the file in your hands must be one the attestation names. The subject
+#    is a list: the report and the PDF rendering are both covered by the one
+#    signature, so this looks the digest up rather than assuming a position.
+have = hashlib.sha256(report).hexdigest()
+named = {s[&quot;name&quot;]: s[&quot;digest&quot;][&quot;sha256&quot;] for s in statement[&quot;subject&quot;]}
+if have not in named.values():
+    die(&quot;this file is not one the attestation covers&quot;)
+covers = [n for n, d in named.items() if d == have]
 
 p = statement[&quot;predicate&quot;]
-print(&quot;VERIFIED&quot;, statement[&quot;subject&quot;][0][&quot;name&quot;])
+print(&quot;VERIFIED&quot;, &quot;, &quot;.join(covers))
 print(&quot;  framework   &quot;, p[&quot;framework&quot;])
 print(&quot;  period      &quot;, p[&quot;period&quot;][&quot;start&quot;], &quot;-&gt;&quot;, p[&quot;period&quot;][&quot;end&quot;])
 print(&quot;  installation&quot;, p[&quot;installation&quot;][&quot;fingerprint&quot;])

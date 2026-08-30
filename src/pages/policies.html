@@ -1,0 +1,203 @@
+<!--meta {
+  "title": "Policies",
+  "description": "The ImageSecurityPolicy resource: what each field decides, how a namespace gets its policy, and ready-to-apply examples for adoption, production and break-glass."
+} -->
+
+<h1>Policies</h1>
+<p class="lede">One cluster-scoped resource decides what may run. The console edits it live; <code>kubectl apply</code> edits it from a repository. They are the same object, so GitOps and the UI never fight over a second source of truth.</p>
+
+<h2>Where policy lives</h2>
+
+<p>Policy is an <code>ImageSecurityPolicy</code>, a cluster-scoped custom resource in the
+<code>attestkeep.com</code> API group. The chart installs one named <code>default</code>. Look at it
+the way you would look at anything else in the cluster:</p>
+
+<pre><code>kubectl get imagesecuritypolicies
+kubectl describe imagesecuritypolicy default
+kubectl get imagesecuritypolicy default -o yaml</code></pre>
+
+<p>A policy edit takes effect on the next admission decision. There is no redeploy, no restart,
+and nothing to reload.</p>
+
+<h2>How a namespace gets its policy</h2>
+
+<p>Two rules, checked in order:</p>
+
+<ol>
+  <li>A policy whose <code>spec.targetNamespaces</code> lists the namespace wins.</li>
+  <li>Otherwise the policy with no <code>targetNamespaces</code> applies — that is the global default.</li>
+</ol>
+
+<p>So the usual arrangement is one global policy, plus a stricter one naming the namespaces
+that have earned it. A namespace listed nowhere, in a cluster whose only policies are all
+targeted, is not covered — keep one global policy unless you mean that.</p>
+
+<h2>Example: the shipped default, annotated</h2>
+
+<p>This is the policy the chart installs, with the reasoning attached. It admits workloads
+whose images are not yet scanned, queues the scan, and refuses once findings cross the
+thresholds — the adoption-friendly posture.</p>
+
+<pre><code>apiVersion: attestkeep.com/v1alpha1
+kind: ImageSecurityPolicy
+metadata:
+  name: default
+spec:
+  # Enforce refuses; Audit only records what it would have refused.
+  enforcement: Enforce
+
+  # AllowAndScan admits an unknown digest and queues the scan.
+  # DenyUntilScanned refuses anything without a scan record.
+  admissionTiming: AllowAndScan
+
+  # A mutable tag can change what runs without anyone deploying.
+  blockLatestTag: true
+
+  # AllowTags | PreferDigest | Required — whether images must be pinned
+  # by digest. Required is the strongest claim and the strictest rollout.
+  digestEnforcement: AllowTags
+
+  thresholds:
+    blockCritical: true   # any critical finding refuses the image
+    blockHigh: true       # any high finding refuses the image
+    maxMedium: 0          # 0 means unlimited here; set a ceiling to refuse past it
+    maxLow: 0
+
+  # How long a finding may stay open before the report calls it overdue.
+  slaWindows:
+    critical: 24h
+    high: 168h
+    medium: 720h
+    low: 2160h
+
+  # Supply-chain requirements, all off by default: turn them on once your
+  # build pipeline actually produces signatures and attestations.
+  requireSignature: false
+  requireSBOM: false
+  requireVulnAttestation: false
+  attestationMaxAge: 168h
+
+  # Accepted-risk decisions: how long a triage may stand, and whether it
+  # must say why.
+  triageDefaults:
+    maxDuration: 2160h
+    requireJustification: true</code></pre>
+
+<pre><code>kubectl apply -f policy-default.yaml</code></pre>
+
+<h2>Example: audit-only adoption</h2>
+
+<p>The first week on an existing cluster. Nothing is refused; every decision that
+<em>would</em> have refused is recorded, so you learn what enforcement will cost before
+paying it.</p>
+
+<pre><code>apiVersion: attestkeep.com/v1alpha1
+kind: ImageSecurityPolicy
+metadata:
+  name: default
+spec:
+  enforcement: Audit
+  admissionTiming: AllowAndScan
+  blockLatestTag: true
+  digestEnforcement: AllowTags
+  thresholds:
+    blockCritical: true
+    blockHigh: true</code></pre>
+
+<h2>Example: a production namespace that has earned strictness</h2>
+
+<p>The global default stays adoption-friendly; <code>prod</code> gets the hard gate. Unknown
+images are refused until scanned, images must be pinned by digest, must come from your
+registry, must be signed, and workload hardening findings refuse rather than warn.</p>
+
+<pre><code>apiVersion: attestkeep.com/v1alpha1
+kind: ImageSecurityPolicy
+metadata:
+  name: prod-hard-gate
+spec:
+  targetNamespaces: ["prod", "payments"]
+
+  enforcement: Enforce
+  admissionTiming: DenyUntilScanned
+  blockLatestTag: true
+  digestEnforcement: Required
+
+  # Anything not from these hosts is refused outright.
+  allowedRegistries:
+    - registry.example.com
+    - ghcr.io/your-org
+
+  thresholds:
+    blockCritical: true
+    blockHigh: true
+
+  requireSignature: true
+  requireSBOM: true
+  requireVulnAttestation: true
+  attestationMaxAge: 168h
+
+  # off | warn | enforce. enforce refuses privileged containers, hostPath
+  # mounts and their relatives; exempt lists workloads allowed anyway.
+  workloadHardening:
+    mode: enforce
+    minSeverity: high
+    exempt: []</code></pre>
+
+<p>Pair <code>DenyUntilScanned</code> with <code>webhook.failurePolicy: Fail</code> in the chart
+values if the gate must hold even while the operator is down — see
+<a href="/admission/">Admission</a> for what that trade costs.</p>
+
+<h2>Example: break-glass</h2>
+
+<p>Production is down, the fix is an image the policy refuses, and the incident channel has
+agreed to let it through. Break-glass admits the named images, records every use of the
+exception, and expires on its own — an exception that cannot outlive the incident.</p>
+
+<pre><code>apiVersion: attestkeep.com/v1alpha1
+kind: ImageSecurityPolicy
+metadata:
+  name: default
+spec:
+  enforcement: Enforce
+  admissionTiming: AllowAndScan
+  blockLatestTag: true
+  thresholds:
+    blockCritical: true
+    blockHigh: true
+  breakGlass:
+    enabled: true
+    reason: "INC-2417: rollback image carries a known high finding"
+    approvedBy: "on-call, incident commander"
+    auditRef: "INC-2417"
+    expiresAt: "2026-09-01T06:00:00Z"
+    affectedImages:
+      - registry.example.com/payments/api:1.41.2</code></pre>
+
+<p>Every admission that passed only because of break-glass is marked as such in the audit
+trail and in compliance reports — the exception is evidence too, which is the point.</p>
+
+<h2>Field reference</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Field</th><th>Values</th><th>What it decides</th></tr></thead>
+  <tbody>
+    <tr><td><code>enforcement</code></td><td><code>Enforce</code> | <code>Audit</code></td><td>Refuse, or only record what would have been refused.</td></tr>
+    <tr><td><code>admissionTiming</code></td><td><code>AllowAndScan</code> | <code>DenyUntilScanned</code></td><td>What happens to an image with no scan record yet.</td></tr>
+    <tr><td><code>blockLatestTag</code></td><td>bool</td><td>Refuse the one tag that changes underneath you.</td></tr>
+    <tr><td><code>digestEnforcement</code></td><td><code>AllowTags</code> | <code>PreferDigest</code> | <code>Required</code></td><td>Whether images must be pinned by digest.</td></tr>
+    <tr><td><code>allowedRegistries</code></td><td>list of hosts</td><td>Empty allows any registry; non-empty refuses all others.</td></tr>
+    <tr><td><code>targetNamespaces</code></td><td>list</td><td>Empty makes this the global policy; non-empty scopes it to those namespaces, overriding the global one there.</td></tr>
+    <tr><td><code>thresholds</code></td><td>—</td><td><code>blockCritical</code>/<code>blockHigh</code> refuse on any such finding; <code>maxMedium</code>/<code>maxLow</code> set ceilings (0 = unlimited).</td></tr>
+    <tr><td><code>slaWindows</code></td><td>durations</td><td>How long a finding of each severity may stay open before reports call it overdue.</td></tr>
+    <tr><td><code>requireSignature</code></td><td>bool</td><td>Refuse images without a verified cosign signature.</td></tr>
+    <tr><td><code>requireSBOM</code></td><td>bool</td><td>Refuse images without an SBOM attestation.</td></tr>
+    <tr><td><code>requireVulnAttestation</code></td><td>bool</td><td>Refuse images without a vulnerability-scan attestation.</td></tr>
+    <tr><td><code>attestationMaxAge</code></td><td>duration</td><td>An attestation older than this no longer counts.</td></tr>
+    <tr><td><code>workloadHardening</code></td><td><code>mode</code>, <code>minSeverity</code>, <code>exempt</code></td><td>Whether privileged containers, hostPath mounts and similar refuse (<code>enforce</code>), warn, or pass; <code>exempt</code> names workloads allowed anyway.</td></tr>
+    <tr><td><code>breakGlass</code></td><td>—</td><td>A named, approved, expiring exception; every use is recorded.</td></tr>
+    <tr><td><code>triageDefaults</code></td><td><code>maxDuration</code>, <code>requireJustification</code></td><td>How long an accepted risk may stand, and whether it must say why.</td></tr>
+    <tr><td><code>storageUnreachablePolicy</code></td><td><code>Allow</code> | <code>Deny</code></td><td>The admission answer while the database is unreachable.</td></tr>
+  </tbody>
+</table>
+</div>

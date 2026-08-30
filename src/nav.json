@@ -25,6 +25,10 @@
           "title": "Configuration"
         },
         {
+          "slug": "policies",
+          "title": "Policies"
+        },
+        {
           "slug": "admission",
           "title": "Admission"
         },
