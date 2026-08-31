@@ -15,6 +15,9 @@ tracker.
 - Product site: https://attestkeep.com
 - Security disclosure: https://attestkeep.com/security.html
 
+The content is readable, not open source — see [LICENSE](LICENSE) for the
+short version of what that means.
+
 ## Building it
 
 ```sh
