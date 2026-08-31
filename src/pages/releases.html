@@ -12,14 +12,17 @@
 
 <ul>
   <li><strong>Keyless</strong>, through GitHub's OIDC: proves this exact digest was built by the release workflow, on this tag, in this repository, and records it in the public transparency log. The stronger claim — check it when you have internet.</li>
-  <li><strong>Keyed</strong>, against <code>cosign.pub</code> from the repository root: verifies with nothing beyond your registry. This one exists for air-gapped clusters, which cannot reach the transparency log at all.</li>
+  <li><strong>Keyed</strong>, against <code>cosign.pub</code>, published at <a href="/cosign.pub">docs.attestkeep.com/cosign.pub</a>: verifies with nothing beyond your registry. This one exists for air-gapped clusters, which cannot reach the transparency log at all.</li>
 </ul>
 
-<pre><code><span class="s"># keyed — works offline, cosign.pub ships in the repository root and the chart</span>
+<pre><code><span class="s"># keyed — works offline once you hold the key</span>
+curl -sO https://docs.attestkeep.com/cosign.pub
 cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.1.0
 
-<span class="s"># both checks together — the same script the release pipeline runs on itself</span>
-./scripts/verify-release.sh ghcr.io/attestkeep/attestkeep-k8s:0.1.0 cosign.pub</code></pre>
+<span class="s"># keyless — proves the digest was built by our release workflow on GitHub</span>
+cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.1.0 \
+  --certificate-identity-regexp '^https://github.com/attestkeep/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com</code></pre>
 
 <p>Always verify the digest, not the tag: a tag can be moved to different content after it was signed, a digest cannot. This is the same argument the product makes to your own cluster in <code>digestEnforcement</code>.</p>
 
@@ -40,4 +43,7 @@ cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.1.0
   --set clusterName=production-eu \
   --wait</code></pre>
 
-<p>Release notes, the SBOM and <code>cosign.pub</code> are attached to the <a href="https://github.com/attestkeep/attestkeep-k8s/releases/tag/v0.1.0">GitHub release</a>.</p>
+<p>The SBOM travels with the image itself, as a signed CycloneDX attestation — pull it straight from the registry:</p>
+
+<pre><code>cosign verify-attestation --type cyclonedx --key cosign.pub \
+  ghcr.io/attestkeep/attestkeep-k8s:0.1.0</code></pre>
