@@ -14,7 +14,8 @@
   <li>every admission decision, allows included, with the image, the digest, the reason and the policy that produced it — down to a content hash of the policy as it stood at that moment, so a decision is read against the policy text it was actually made under,</li>
   <li>the exceptions that were active, who approved each one and when it expired,</li>
   <li>scan coverage: which digests were evaluated, against which database version, and when,</li>
-  <li>gaps, stated as gaps — periods where the webhook was not answering, or the quota was exhausted, appear as what they were.</li>
+  <li>gaps, stated as gaps — periods where the webhook was not answering, or the quota was exhausted, appear as what they were,</li>
+  <li>the population, reconciled: every running container's observed <code>imageID</code> checked against the admission ledger, so the document can say not only "the control decided N times" but "and here is what is running that it never decided on" — workloads that predate the install, entered during a gap, or slipped through under <code>failurePolicy: Ignore</code> are listed by name rather than left invisible.</li>
 </ul>
 
 <p>The allows matter as much as the denials. Evidence that only lists blocks can show that something was blocked; it cannot show that a control was operating.</p>

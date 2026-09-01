@@ -176,6 +176,48 @@ spec:
 <p>Every admission that passed only because of break-glass is marked as such in the audit
 trail and in compliance reports — the exception is evidence too, which is the point.</p>
 
+<h2>Example: runtime reconciliation</h2>
+
+<p>The admission ledger records what crossed the boundary under the control. It says
+nothing about what is running that never crossed under it: a workload that predates the
+install, one that entered during an availability window, or one that slipped through
+under <code>webhook.failurePolicy: Ignore</code> keeps running long after the window
+closed, and no admission event names it.</p>
+
+<p>The reconciliation sweep closes that gap. On a schedule
+(<code>reconcile.interval</code>, default hourly) the operator reads every running
+container's <em>observed</em> <code>imageID</code> — not the spec's image reference,
+which under a mutable tag can still match its original admission event while the bytes
+underneath have changed — and checks each digest against the ledger. A running digest
+with no allowed admission event behind it is exactly the set that entered outside the
+control. What happens next is this policy's choice:</p>
+
+<pre><code>apiVersion: attestkeep.com/v1alpha1
+kind: ImageSecurityPolicy
+metadata:
+  name: default
+spec:
+  enforcement: Enforce
+  admissionTiming: AllowAndScan
+
+  # audit   — record the finding in the sweep history and the evidence document.
+  # notify  — also announce a newly seen unverified image on the notification
+  #           channels (announced once per digest, not once per sweep).
+  # enforce — also stop the pod, so its controller recreates it through the
+  #           webhook. Re-admission, not punishment: the recreated pod either
+  #           gets a recorded denial or a recorded admission, and both are more
+  #           than it had. A few pods per sweep, so a cluster full of
+  #           pre-existing workloads drains through the gate gradually.
+  runtimeReconciliation: audit</code></pre>
+
+<p>Findings land in the evidence document's <code>population</code> section either way,
+alongside the sweep's own honesty markers: containers the webhook would not have
+intercepted are counted apart as out-of-scope, side-loaded images that carry no registry
+digest are reported as unverifiable rather than folded into either verdict, and a
+truncated workload list says so. During break-glass, <code>enforce</code> quietly steps
+down to <code>notify</code> — a pod stopped mid-incident would be readmitted through the
+bypass, which would launder it into an allowed event instead of judging it.</p>
+
 <h2>Field reference</h2>
 
 <div class="table-wrap">
@@ -195,6 +237,7 @@ trail and in compliance reports — the exception is evidence too, which is the 
     <tr><td><code>requireVulnAttestation</code></td><td>bool</td><td>Refuse images without a vulnerability-scan attestation.</td></tr>
     <tr><td><code>attestationMaxAge</code></td><td>duration</td><td>An attestation older than this no longer counts.</td></tr>
     <tr><td><code>workloadHardening</code></td><td><code>mode</code>, <code>minSeverity</code>, <code>exempt</code></td><td>Whether privileged containers, hostPath mounts and similar refuse (<code>enforce</code>), warn, or pass; <code>exempt</code> names workloads allowed anyway.</td></tr>
+    <tr><td><code>runtimeReconciliation</code></td><td><code>audit</code> | <code>notify</code> | <code>enforce</code></td><td>What the periodic sweep does about a running image with no admission event behind it: record it, announce it, or stop the pod so it re-enters through the webhook.</td></tr>
     <tr><td><code>breakGlass</code></td><td>—</td><td>A named, approved, expiring exception; every use is recorded.</td></tr>
     <tr><td><code>triageDefaults</code></td><td><code>maxDuration</code>, <code>requireJustification</code></td><td>How long an accepted risk may stand, and whether it must say why.</td></tr>
     <tr><td><code>storageUnreachablePolicy</code></td><td><code>Allow</code> | <code>Deny</code></td><td>The admission answer while the database is unreachable.</td></tr>

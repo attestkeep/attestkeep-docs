@@ -47,6 +47,7 @@
     <tr><td><code>scan.rescanInterval</code></td><td><code>24h</code></td><td>How often a known digest is re-evaluated against a refreshed database.</td></tr>
     <tr><td><code>scan.insecureRegistries</code></td><td><code>[]</code></td><td>Registries served over plain HTTP. Must be named — silently downgrading a connection is not a decision a security tool makes for you.</td></tr>
     <tr><td><code>scan.cosignOffline</code></td><td><code>false</code></td><td>Verify against the key and skip the transparency log. See <a href="/air-gapped/">air-gapped</a> for what that costs.</td></tr>
+    <tr><td><code>reconcile.interval</code></td><td><code>1h</code></td><td>How often what is actually running — each container's observed <code>imageID</code> — is reconciled against the admission ledger, catching workloads that entered before the install, during an outage, or under <code>failurePolicy: Ignore</code>. <code>0</code> disables the sweep. What a finding does is the policy's choice: <a href="/policies/"><code>spec.runtimeReconciliation</code></a>.</td></tr>
   </tbody>
 </table>
 </div>
