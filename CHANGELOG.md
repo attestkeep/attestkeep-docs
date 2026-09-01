@@ -3,6 +3,11 @@
 Every published version of Attestkeep, newest first. The same notes with
 install commands are at [docs.attestkeep.com/releases](https://docs.attestkeep.com/releases/).
 
+Entries are labelled **Fixed**, **Added** and **Changed** so that the question
+an operator actually arrives with — is there something here I need to act on —
+is answered without reading the prose. Anything that requires action says so in
+its first sentence.
+
 Each release is one image digest pushed to GHCR and signed twice on that
 digest — keyless through GitHub's OIDC, and against `cosign.pub` for clusters
 that cannot reach the transparency log. Verify the digest, not the tag.
@@ -14,45 +19,48 @@ cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.3
 
 ## 0.3.3 — 2026-09-01
 
-`runtimeReconciliation: enforce` no longer stops a pod that nothing would
-recreate.
+**Fixed — `runtimeReconciliation: enforce` destroyed the workloads it could not
+re-admit.** Affects installations running `enforce`; `audit` and `notify` are
+unchanged.
 
 - Enforcement is re-admission, and re-admission needs something to build the
-  replacement. A pod applied by hand has no controller, so evicting it
-  answered the finding by deleting the workload the finding was about —
-  leaving no denial, no admission, and a `population` section showing an
-  absence where an unverified workload used to be. A pod applied by hand
-  during an outage window is exactly the entry route the sweep exists to
-  catch, so this was wrong in the case that matters most.
-- A static pod fails the same requirement from the other end: the kubelet
+  replacement. A pod applied by hand has no controller, so evicting it answered
+  the finding by deleting the workload the finding was about — leaving no
+  denial, no admission, and a `population` section showing an absence where an
+  unverified workload used to be. A pod applied by hand during an outage window
+  is exactly the entry route the sweep exists to catch, so this was wrong in
+  the case that matters most.
+- A static pod failed the same requirement from the other end: the kubelet
   rebuilds the mirror without going near admission, so eviction looped without
   ever producing an event. It carries an ownerReference to its node, which is
   why the controller check alone called it managed; the mirror annotation is
   now read first.
-- Both are reported and left running, in the same bucket as a side-loaded
+- Both are now reported and left running, in the same bucket as a side-loaded
   image — named in the sweep, marked `unmanaged` in the workload list, and
-  announced once per sweep as something only a person can decide. Nothing
-  about `audit` or `notify` changes.
+  announced once per sweep as something only a person can decide.
 
 Found by Vinh Nguyen, who read the feature and asked what happens when the
 thing you stop has nothing behind it.
 
 ## 0.3.2 — 2026-09-01
 
-**If you installed 0.3.0 or 0.3.1, please upgrade: those charts ran the 0.2.0
-binary.**
+**Fixed — the 0.3.0 and 0.3.1 charts deployed the 0.2.0 binary. If you
+installed either, upgrade.** An installation on those versions has runtime
+reconciliation configured and never running.
 
 - The chart pinned `image.tag` to a fixed `0.2.0` in its values, and the 0.3.0
   and 0.3.1 releases bumped the chart version without bumping it. Both charts
-  therefore deployed 0.3.x templates around a 0.2.0 operator — which does not
-  contain runtime reconciliation at all. An installation on either version has
-  the sweep configured and never running: no `population` section in the
-  evidence, no unverified count on the dashboard, and no
+  therefore deployed 0.3.x templates around a 0.2.0 operator, which does not
+  contain the sweep at all: no `population` section in the evidence, no
+  unverified count on the dashboard, and no
   `attestkeep_runtime_unmatched_digests` series.
 - The tag now defaults to the chart's own `appVersion`, which the release
-  stamps. A chart and the binary it deploys can no longer drift apart.
-- If you set `image.tag` yourself, clear it — an explicit value still wins,
-  which is what it is for.
+  stamps, so a chart and the binary it deploys can no longer drift apart. The
+  release workflow refuses to publish a chart whose version disagrees with the
+  build, or one that pins the tag at all.
+
+**Changed** — if you set `image.tag` yourself, clear it. An explicit value
+still wins, which is what the field is for.
 
 ```sh
 kubectl -n attestkeep get deploy attestkeep \
@@ -61,15 +69,18 @@ kubectl -n attestkeep get deploy attestkeep \
 
 ## 0.3.1 — 2026-09-01
 
-Hardening for `runtimeReconciliation: enforce`, before anyone leans on it.
+**Changed — enforcement is now armed with two keys.** A policy set to `enforce`
+does nothing until the chart also grants the permission with
+`rbac.allowEnforce: true`, which is off by default. An audit-only install
+carries no eviction right at all, and a policy asking for enforcement without
+the grant logs what is missing rather than failing quietly.
+
+**Fixed**
 
 - Stopping a pod asks for its *eviction* rather than deleting it, so
   PodDisruptionBudgets are honoured: a service whose every replica is
   unverified drains at the pace its budget allows instead of going down at
   once. A budget that says no defers the pod to a later sweep.
-- Enforcement is armed with two keys: the policy chooses the mode, and the
-  chart must also grant the permission with `rbac.allowEnforce: true` (default
-  off). An audit-only install carries no eviction right at all.
 - A digest whose pod was already stopped once is left alone for 24 hours. If
   its re-admission produced no allowed event — an unresolvable tag does this —
   stopping it again every sweep would be a crash loop administered by the
@@ -79,14 +90,14 @@ Hardening for `runtimeReconciliation: enforce`, before anyone leans on it.
 
 ## 0.3.0 — 2026-09-01
 
-Runtime reconciliation: what the admission ledger cannot tell you.
+**Added — runtime reconciliation: what the admission ledger cannot tell you.**
 
-- The operator periodically reads every running container's observed
-  `imageID` and checks it against the admission ledger. A digest with no
-  admission event behind it — a workload that predates the install, entered
-  during an outage window, or slipped through under `failurePolicy: Ignore` —
-  is reported instead of staying invisible. The evidence package gains a
-  `population` section; the dashboard shows the unverified count;
+- The operator periodically reads every running container's observed `imageID`
+  and checks it against the admission ledger. A digest with no admission event
+  behind it — a workload that predates the install, entered during an outage
+  window, or slipped through under `failurePolicy: Ignore` — is reported
+  instead of staying invisible. The evidence package gains a `population`
+  section, the dashboard shows the unverified count, and
   `attestkeep_runtime_unmatched_digests` is exported for alerting.
 - What a finding does is the policy's choice: `spec.runtimeReconciliation` is
   `audit` (record), `notify` (announce a newly seen unverified image), or
@@ -95,21 +106,25 @@ Runtime reconciliation: what the admission ledger cannot tell you.
   counted apart, side-loaded images with no registry digest are reported as
   unverifiable rather than guessed at, and a truncated workload list says so.
 
+Shipped with the chart defect described under 0.3.2 — go straight to 0.3.3.
+
 ## 0.2.0 — 2026-08-31
 
+**Added — decisions are readable against the policy that made them.**
+
 - Every admission decision records a content hash of the policy it was made
-  under, and the revision snapshots stay resolvable — a decision is read
-  against the policy text as it stood, not as it stands today. Evidence
+  under, and the revision snapshots stay resolvable, so a decision is read
+  against the policy text as it stood rather than as it stands today. Evidence
   packages list the revisions that decided the period, and reviews recorded
   before hashing existed are counted apart rather than dressed up.
 - The console's decision feed shows the policy and its revision hash on each
   review.
-- Chart housekeeping: the Artifact Hub listing carries the product icon and
-  links.
+
+**Changed** — the Artifact Hub listing carries the product icon and links.
 
 ## 0.1.0 — 2026-08-30
 
-The first published release.
+**Added — the first published release.**
 
 - Admission webhook: image scanning verdicts, severity gates, `:latest`
   refusal, digest enforcement, registry allow-lists, workload hardening,

@@ -63,6 +63,8 @@
     <h1>Releases</h1>
 <p class="lede">Every version we publish, newest first. Each release is one image digest pushed to GHCR, signed twice on that digest, with the chart published alongside it.</p>
 
+<p>Entries are labelled <strong>Fixed</strong>, <strong>Added</strong> and <strong>Changed</strong>, so the question you arrive with — is there something here I have to act on — is answered before the prose. Anything that needs action says so in its first sentence. The same history is in <a href="https://github.com/attestkeep/attestkeep-docs/blob/develop/CHANGELOG.md" rel="noopener">CHANGELOG.md</a> for reading in the repository.</p>
+
 <h2>How releases are signed</h2>
 
 <p>Every release carries two signatures over the same image digest, and they answer different questions.</p>
@@ -85,7 +87,9 @@ cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.2.0 \
 
 <h2>v0.3.3</h2>
 
-<p>2026-09-01. <code>runtimeReconciliation: enforce</code> no longer stops a pod that nothing would recreate.</p>
+<p>2026-09-01.</p>
+
+<p><strong>Fixed — <code>runtimeReconciliation: enforce</code> destroyed the workloads it could not re-admit.</strong> Affects installations running <code>enforce</code>; <code>audit</code> and <code>notify</code> are unchanged.</p>
 
 <ul>
   <li>Enforcement is re-admission, and re-admission needs something to build the replacement. A pod applied by hand has no controller, so evicting it answered the finding by deleting the workload the finding was about — leaving no denial, no admission, and a <code>population</code> section showing an absence where an unverified workload used to be. A pod applied by hand during an outage window is exactly the entry route the sweep exists to catch, so this was wrong in the case that matters most.</li>
@@ -101,13 +105,16 @@ cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.2.0 \
 
 <h2>v0.3.2</h2>
 
-<p>2026-09-01. <strong>If you installed 0.3.0 or 0.3.1, please upgrade: those charts ran the 0.2.0 binary.</strong></p>
+<p>2026-09-01.</p>
+
+<p><strong>Fixed — the 0.3.0 and 0.3.1 charts deployed the 0.2.0 binary. If you installed either, upgrade.</strong> An installation on those versions has runtime reconciliation configured and never running.</p>
 
 <ul>
-  <li>The chart pinned <code>image.tag</code> to a fixed <code>0.2.0</code> in its values, and the 0.3.0 and 0.3.1 releases bumped the chart version without bumping it. Both charts therefore deployed 0.3.x templates around a 0.2.0 operator — which does not contain runtime reconciliation at all. An installation on either version has the sweep configured and never running: no <code>population</code> section in the evidence, no unverified count on the dashboard, and no <code>attestkeep_runtime_unmatched_digests</code> series.</li>
-  <li>The tag now defaults to the chart's own <code>appVersion</code>, which the release stamps. A chart and the binary it deploys can no longer drift apart.</li>
-  <li>If you set <code>image.tag</code> yourself, clear it — an explicit value still wins, which is what it is for.</li>
+  <li>The chart pinned <code>image.tag</code> to a fixed <code>0.2.0</code> in its values, and the 0.3.0 and 0.3.1 releases bumped the chart version without bumping it. Both charts therefore deployed 0.3.x templates around a 0.2.0 operator, which does not contain the sweep at all: no <code>population</code> section in the evidence, no unverified count on the dashboard, and no <code>attestkeep_runtime_unmatched_digests</code> series.</li>
+  <li>The tag now defaults to the chart's own <code>appVersion</code>, which the release stamps, so a chart and the binary it deploys can no longer drift apart. The release workflow refuses to publish a chart whose version disagrees with the build, or one that pins the tag at all.</li>
 </ul>
+
+<p><strong>Changed</strong> — if you set <code>image.tag</code> yourself, clear it. An explicit value still wins, which is what the field is for.</p>
 
 <pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
   --version 0.3.3 \
@@ -119,11 +126,14 @@ kubectl -n attestkeep get deploy attestkeep \
 
 <h2>v0.3.1</h2>
 
-<p>2026-09-01. Hardening for <code>runtimeReconciliation: enforce</code>, before anyone leans on it.</p>
+<p>2026-09-01.</p>
+
+<p><strong>Changed — enforcement is now armed with two keys.</strong> A policy set to <code>enforce</code> does nothing until the chart also grants the permission with <code>rbac.allowEnforce: true</code>, which is off by default. An audit-only install carries no eviction right at all, and a policy asking for enforcement without the grant logs what is missing rather than failing quietly.</p>
+
+<p><strong>Fixed</strong></p>
 
 <ul>
-  <li>Stopping a pod now asks for its <em>eviction</em> rather than deleting it, so PodDisruptionBudgets are honoured: a service whose every replica is unverified drains at the pace its budget allows instead of going down at once. A budget that says no defers the pod to a later sweep.</li>
-  <li>Enforcement is armed with two keys: the policy chooses the mode, and the chart must also grant the permission with <code>rbac.allowEnforce: true</code> (default off). An audit-only install now carries no eviction right at all, and a policy set to enforce without the grant logs what is missing instead of stopping nothing silently.</li>
+  <li>Stopping a pod asks for its <em>eviction</em> rather than deleting it, so PodDisruptionBudgets are honoured: a service whose every replica is unverified drains at the pace its budget allows instead of going down at once. A budget that says no defers the pod to a later sweep.</li>
   <li>A digest whose pod was already stopped once is left alone for 24 hours. If its re-admission produced no allowed event — an unresolvable tag does this — stopping it again every sweep would be a crash loop administered by the security tool. It stays reported.</li>
   <li>The sweep's ledger query gets a partial index; on a long-lived install it was a sequential scan repeated every interval.</li>
 </ul>
@@ -135,6 +145,8 @@ kubectl -n attestkeep get deploy attestkeep \
 <h2>v0.3.0</h2>
 
 <p>2026-09-01.</p>
+
+<p><strong>Added — runtime reconciliation: what the admission ledger cannot tell you.</strong></p>
 
 <ul>
   <li>Runtime reconciliation: the operator now periodically reads every running container's observed <code>imageID</code> and checks it against the admission ledger. A digest with no admission event behind it — a workload that predates the install, entered during an outage window, or slipped through under <code>failurePolicy: Ignore</code> — is reported instead of staying invisible. The evidence package gains a <code>population</code> section; the dashboard shows the unverified count; <code>attestkeep_runtime_unmatched_digests</code> is exported for alerting.</li>
@@ -148,15 +160,20 @@ kubectl -n attestkeep get deploy attestkeep \
 
 <p>The database migrates itself on start-up. The sweep defaults to hourly (<code>reconcile.interval</code>) in <code>audit</code> mode — nothing is stopped until a policy says so.</p>
 
+<p>Shipped with the chart defect described under v0.3.2 — go straight to 0.3.3.</p>
+
 <h2>v0.2.0</h2>
 
 <p>2026-08-31.</p>
 
+<p><strong>Added — decisions are readable against the policy that made them.</strong></p>
+
 <ul>
   <li>Every admission decision now records a content hash of the policy it was made under, and the revision snapshots stay resolvable — a decision is read against the policy text as it stood, not as it stands today. Evidence packages list the revisions that decided the period, and reviews recorded before hashing existed are counted apart rather than dressed up.</li>
   <li>The console's decision feed shows the policy and its revision hash on each review.</li>
-  <li>Chart housekeeping: the Artifact Hub listing carries the product icon and links; nothing on a public listing points into a private repository any more.</li>
 </ul>
+
+<p><strong>Changed</strong> — the Artifact Hub listing carries the product icon and links; nothing on a public listing points into a private repository any more.</p>
 
 <pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
   --version 0.2.0 \
@@ -166,7 +183,9 @@ kubectl -n attestkeep get deploy attestkeep \
 
 <h2>v0.1.0</h2>
 
-<p>2026-08-30 — the first published release.</p>
+<p>2026-08-30.</p>
+
+<p><strong>Added — the first published release.</strong></p>
 
 <ul>
   <li>Admission webhook: image scanning verdicts, severity gates, <code>:latest</code> refusal, digest enforcement, registry allow-lists, workload hardening, break-glass with expiry.</li>
