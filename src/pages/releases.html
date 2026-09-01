@@ -26,6 +26,21 @@ cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.2.0 \
 
 <p>Always verify the digest, not the tag: a tag can be moved to different content after it was signed, a digest cannot. This is the same argument the product makes to your own cluster in <code>digestEnforcement</code>.</p>
 
+<h2>v0.3.1</h2>
+
+<p>2026-09-01. Hardening for <code>runtimeReconciliation: enforce</code>, before anyone leans on it.</p>
+
+<ul>
+  <li>Stopping a pod now asks for its <em>eviction</em> rather than deleting it, so PodDisruptionBudgets are honoured: a service whose every replica is unverified drains at the pace its budget allows instead of going down at once. A budget that says no defers the pod to a later sweep.</li>
+  <li>Enforcement is armed with two keys: the policy chooses the mode, and the chart must also grant the permission with <code>rbac.allowEnforce: true</code> (default off). An audit-only install now carries no eviction right at all, and a policy set to enforce without the grant logs what is missing instead of stopping nothing silently.</li>
+  <li>A digest whose pod was already stopped once is left alone for 24 hours. If its re-admission produced no allowed event — an unresolvable tag does this — stopping it again every sweep would be a crash loop administered by the security tool. It stays reported.</li>
+  <li>The sweep's ledger query gets a partial index; on a long-lived install it was a sequential scan repeated every interval.</li>
+</ul>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 0.3.1 \
+  --namespace attestkeep --wait</code></pre>
+
 <h2>v0.3.0</h2>
 
 <p>2026-09-01.</p>

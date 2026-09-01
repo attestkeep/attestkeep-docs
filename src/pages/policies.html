@@ -210,6 +210,16 @@ spec:
   #           pre-existing workloads drains through the gate gradually.
   runtimeReconciliation: audit</code></pre>
 
+<p>Enforcement is armed with two keys. The policy above chooses the mode; the chart must
+also grant the permission it needs — <code>rbac.allowEnforce: true</code> — or the sweep
+logs the missing grant and stops nothing. Stopping means asking for <em>eviction</em>,
+the subresource where the API server applies PodDisruptionBudgets, so a service whose
+every replica is unverified drains at the pace its budget allows rather than going down
+at once. And a digest whose pod was already stopped once is left alone for a day: if its
+re-admission produced no allowed event, stopping it again every sweep would be a crash
+loop administered by the security tool — it stays reported, and a human owns the next
+move.</p>
+
 <p>Findings land in the evidence document's <code>population</code> section either way,
 alongside the sweep's own honesty markers: containers the webhook would not have
 intercepted are counted apart as out-of-scope, side-loaded images that carry no registry
