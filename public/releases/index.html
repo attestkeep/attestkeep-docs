@@ -83,6 +83,71 @@ cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.2.0 \
 
 <p>Always verify the digest, not the tag: a tag can be moved to different content after it was signed, a digest cannot. This is the same argument the product makes to your own cluster in <code>digestEnforcement</code>.</p>
 
+<h2>v0.3.3</h2>
+
+<p>2026-09-01. <code>runtimeReconciliation: enforce</code> no longer stops a pod that nothing would recreate.</p>
+
+<ul>
+  <li>Enforcement is re-admission, and re-admission needs something to build the replacement. A pod applied by hand has no controller, so evicting it answered the finding by deleting the workload the finding was about — leaving no denial, no admission, and a <code>population</code> section showing an absence where an unverified workload used to be. A pod applied by hand during an outage window is exactly the entry route the sweep exists to catch, so this was wrong in the case that matters most.</li>
+  <li>A static pod fails the same requirement from the other end: the kubelet rebuilds the mirror without going near admission, so eviction looped without ever producing an event. It carries an ownerReference to its node, which is why the controller check alone called it managed; the mirror annotation is now read first.</li>
+  <li>Both are reported and left running, in the same bucket as a side-loaded image — named in the sweep, marked <code>unmanaged</code> in the workload list, and announced once per sweep as something only a person can decide. Nothing about <code>audit</code> or <code>notify</code> changes.</li>
+</ul>
+
+<p>Found by Vinh Nguyen, who read the feature and asked what happens when the thing you stop has nothing behind it.</p>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 0.3.3 \
+  --namespace attestkeep --wait</code></pre>
+
+<h2>v0.3.2</h2>
+
+<p>2026-09-01. <strong>If you installed 0.3.0 or 0.3.1, please upgrade: those charts ran the 0.2.0 binary.</strong></p>
+
+<ul>
+  <li>The chart pinned <code>image.tag</code> to a fixed <code>0.2.0</code> in its values, and the 0.3.0 and 0.3.1 releases bumped the chart version without bumping it. Both charts therefore deployed 0.3.x templates around a 0.2.0 operator — which does not contain runtime reconciliation at all. An installation on either version has the sweep configured and never running: no <code>population</code> section in the evidence, no unverified count on the dashboard, and no <code>attestkeep_runtime_unmatched_digests</code> series.</li>
+  <li>The tag now defaults to the chart's own <code>appVersion</code>, which the release stamps. A chart and the binary it deploys can no longer drift apart.</li>
+  <li>If you set <code>image.tag</code> yourself, clear it — an explicit value still wins, which is what it is for.</li>
+</ul>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 0.3.3 \
+  --namespace attestkeep --wait
+
+<span class="s"># confirm the running version matches the chart</span>
+kubectl -n attestkeep get deploy attestkeep \
+  -o jsonpath='{.spec.template.spec.containers[0].image}'</code></pre>
+
+<h2>v0.3.1</h2>
+
+<p>2026-09-01. Hardening for <code>runtimeReconciliation: enforce</code>, before anyone leans on it.</p>
+
+<ul>
+  <li>Stopping a pod now asks for its <em>eviction</em> rather than deleting it, so PodDisruptionBudgets are honoured: a service whose every replica is unverified drains at the pace its budget allows instead of going down at once. A budget that says no defers the pod to a later sweep.</li>
+  <li>Enforcement is armed with two keys: the policy chooses the mode, and the chart must also grant the permission with <code>rbac.allowEnforce: true</code> (default off). An audit-only install now carries no eviction right at all, and a policy set to enforce without the grant logs what is missing instead of stopping nothing silently.</li>
+  <li>A digest whose pod was already stopped once is left alone for 24 hours. If its re-admission produced no allowed event — an unresolvable tag does this — stopping it again every sweep would be a crash loop administered by the security tool. It stays reported.</li>
+  <li>The sweep's ledger query gets a partial index; on a long-lived install it was a sequential scan repeated every interval.</li>
+</ul>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 0.3.1 \
+  --namespace attestkeep --wait</code></pre>
+
+<h2>v0.3.0</h2>
+
+<p>2026-09-01.</p>
+
+<ul>
+  <li>Runtime reconciliation: the operator now periodically reads every running container's observed <code>imageID</code> and checks it against the admission ledger. A digest with no admission event behind it — a workload that predates the install, entered during an outage window, or slipped through under <code>failurePolicy: Ignore</code> — is reported instead of staying invisible. The evidence package gains a <code>population</code> section; the dashboard shows the unverified count; <code>attestkeep_runtime_unmatched_digests</code> is exported for alerting.</li>
+  <li>What a finding does is the policy's choice: <code>spec.runtimeReconciliation</code> is <code>audit</code> (record), <code>notify</code> (announce a newly seen unverified image on the notification channels), or <code>enforce</code> (stop the pod so its controller recreates it through the webhook — a few per sweep, so an existing cluster drains gradually). See <a href="/policies/">Policies</a>.</li>
+  <li>The sweep's honesty markers travel with it: out-of-scope containers are counted apart, side-loaded images with no registry digest are reported as unverifiable rather than guessed at, and a truncated workload list says so.</li>
+</ul>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 0.3.0 \
+  --namespace attestkeep --wait</code></pre>
+
+<p>The database migrates itself on start-up. The sweep defaults to hourly (<code>reconcile.interval</code>) in <code>audit</code> mode — nothing is stopped until a policy says so.</p>
+
 <h2>v0.2.0</h2>
 
 <p>2026-08-31.</p>

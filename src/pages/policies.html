@@ -207,7 +207,8 @@ spec:
   #           webhook. Re-admission, not punishment: the recreated pod either
   #           gets a recorded denial or a recorded admission, and both are more
   #           than it had. A few pods per sweep, so a cluster full of
-  #           pre-existing workloads drains through the gate gradually.
+  #           pre-existing workloads drains through the gate gradually. A pod
+  #           with no controller is reported, never stopped — see below.
   runtimeReconciliation: audit</code></pre>
 
 <p>Enforcement is armed with two keys. The policy above chooses the mode; the chart must
@@ -219,6 +220,17 @@ at once. And a digest whose pod was already stopped once is left alone for a day
 re-admission produced no allowed event, stopping it again every sweep would be a crash
 loop administered by the security tool — it stays reported, and a human owns the next
 move.</p>
+
+<p><strong>Enforcement only applies where re-admission is possible.</strong> Stopping a pod
+sends it back through the webhook only because something recreates it. A pod applied by
+hand has no controller, so evicting it would answer the finding by deleting the workload
+the finding was about — no denial recorded, no admission recorded, and the evidence left
+showing an absence where an unverified workload used to be. A static pod fails the same
+requirement from the other end: the kubelet rebuilds it from a file on the node without
+going near admission, so stopping it would loop forever without producing an event.
+Both are reported and left running, marked <code>unmanaged</code> in the workload list,
+because rescheduling a workload that nothing will bring back is a decision that belongs
+to a person and not to a sweep.</p>
 
 <p>Findings land in the evidence document's <code>population</code> section either way,
 alongside the sweep's own honesty markers: containers the webhook would not have

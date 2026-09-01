@@ -100,6 +100,13 @@
   <p><strong>Fail</strong> gives you a control that provably never had a gap, and it means an operator outage stops deployments. That is a real cost and you should choose it on purpose, not inherit it.</p>
 </blockquote>
 
+<p>Either way, whatever crossed during a gap is still running after it closes. The
+<a href="/policies/">runtime reconciliation sweep</a> is what finds it: on a schedule,
+every running container's observed <code>imageID</code> is checked against the admission
+ledger, and a digest with no admission event behind it is reported — or, under
+<code>runtimeReconciliation: enforce</code>, stopped so it re-enters through the
+webhook.</p>
+
 <p><code>Fail</code> and deny-on-cold are paid capabilities. They are not withheld to make Community weaker for its own sake — they are the posture that needs someone answerable when it blocks a deployment at two in the morning.</p>
 
 <h2>Exemptions</h2>

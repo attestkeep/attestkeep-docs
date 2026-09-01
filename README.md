@@ -12,6 +12,7 @@ vulnerabilities use the disclosure process on the site rather than the issue
 tracker.
 
 - Documentation: https://docs.attestkeep.com
+- Release notes: [CHANGELOG.md](CHANGELOG.md), also at https://docs.attestkeep.com/releases/
 - Product site: https://attestkeep.com
 - Security disclosure: https://attestkeep.com/security.html
 
