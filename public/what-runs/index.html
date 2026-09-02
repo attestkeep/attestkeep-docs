@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What runs in your cluster — Attestkeep docs</title>
+<meta name="description" content="Every object the chart creates, every RBAC permission and why it exists, every outbound connection, and what our licence server can and cannot do to you.">
+<link rel="canonical" href="https://docs.attestkeep.com/what-runs/">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#071f20">
+<meta property="og:type" content="article">
+<meta property="og:title" content="What runs in your cluster — Attestkeep docs">
+<meta property="og:description" content="Every object the chart creates, every RBAC permission and why it exists, every outbound connection, and what our licence server can and cannot do to you.">
+<meta property="og:url" content="https://docs.attestkeep.com/what-runs/">
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/img/mark-white.svg" alt="" width="26" height="26">
+    <span class="wordmark">Attest<b>keep</b></span>
+    <span class="brand__tag">docs</span>
+  </a>
+  <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  <nav class="top__links">
+    <a href="https://attestkeep.com/pricing.html">Pricing</a>
+    <a href="https://attestkeep.com/app/signin">Sign in</a>
+  </nav>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+        <h2>Start here</h2>
+    <ul>
+      <li><a href="/">Overview</a></li>
+      <li><a href="/install/">Install</a></li>
+      <li><a href="/what-runs/" aria-current="page">What runs in your cluster</a></li>
+      <li><a href="/licensing/">Licensing</a></li>
+    </ul>
+    <h2>Running it</h2>
+    <ul>
+      <li><a href="/configuration/">Configuration</a></li>
+      <li><a href="/policies/">Policies</a></li>
+      <li><a href="/admission/">Admission</a></li>
+      <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
+      <li><a href="/operations/">Operations and alerting</a></li>
+      <li><a href="/upgrade/">Upgrade</a></li>
+      <li><a href="/backup/">Backup and restore</a></li>
+    </ul>
+    <h2>Evidence and help</h2>
+    <ul>
+      <li><a href="/evidence-trust/">Evidence trust model</a></li>
+      <li><a href="/compliance/">Compliance frameworks</a></li>
+      <li><a href="/verifying-reports/">Verifying a report</a></li>
+      <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      <li><a href="/support/">Support and security</a></li>
+      <li><a href="/releases/">Releases</a></li>
+    </ul>
+  </nav>
+
+  <main class="content" id="content">
+    <h1>What runs in your cluster</h1>
+<p class="lede">You are being asked to give an admission webhook a say over every pod. This page is the full inventory of what that costs: the workloads, the permissions, the network paths — and the honest answer to what our own infrastructure could do to you if it were compromised.</p>
+
+<h2>Workloads</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Object</th><th>Default</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td>Deployment <code>attestkeep</code></td><td>2 replicas, anti-affinity preferred across nodes, PDB <code>minAvailable: 1</code></td><td>The operator: admission webhook (8443), console and API (8080), metrics (9090). Controller work is serialised through a PostgreSQL advisory lock, so replicas scale without a leader-election lease.</td></tr>
+    <tr><td>Deployment <code>attestkeep-scanner</code></td><td>1 replica</td><td>Runs Trivy scans and cosign verification off the admission path. Never receives admission traffic.</td></tr>
+    <tr><td>StatefulSet <code>attestkeep-postgresql</code></td><td>1 replica, 20&nbsp;GiB, <code>postgres:16.4-alpine</code></td><td>The bundled database. Renders only when you have not set <code>externalDsn</code> — point that at your own PostgreSQL and this object does not exist.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>All product containers run as non-root (uid 65532), with a read-only root filesystem, all capabilities dropped, and <code>RuntimeDefault</code> seccomp. Requests default to 100m CPU / 256Mi per product workload. Everything lives in the release namespace; nothing is installed outside it except the two cluster-scoped objects below.</p>
+
+<h2>Cluster-scoped objects</h2>
+
+<ul>
+  <li><strong>Four CRDs</strong> in the <code>attestkeep.com</code> group: <code>ImageSecurityPolicy</code>, <code>ImageSecurityReport</code>, <code>AttestationRenewal</code>, <code>ImageSecurityUsage</code>.</li>
+  <li><strong>One <code>ValidatingWebhookConfiguration</code></strong>: pod CREATE and UPDATE only, <code>failurePolicy: Ignore</code> by default (see <a href="/admission/">Admission</a> for the trade), 15-second timeout, and three escape hatches — the bypass namespace list (<code>kube-system</code>, <code>cert-manager</code>, its own namespace), a <code>attestkeep.com/webhook=bypass</code> namespace label, and an object selector that keeps the operator's own pods out of their own admission loop. There is no mutating webhook: this product never rewrites your workloads.</li>
+</ul>
+
+<h2>RBAC — every permission and its reason</h2>
+
+<p>One ServiceAccount, one ClusterRole, one namespaced Role. This is the complete list; there is nothing else.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Permission</th><th>Scope</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td><code>attestkeep.com</code> CRDs: full CRUD + status</td><td>Cluster</td><td>Policies, reports and usage records are CRDs; the operator manages its own resources.</td></tr>
+    <tr><td><code>pods</code>: get, list, watch; <code>nodes</code>, <code>namespaces</code>: get, list</td><td>Cluster</td><td>The reconciliation sweep has to see what is actually running to compare it with what was admitted.</td></tr>
+    <tr><td><code>secrets</code>: <strong>get only — deliberately not list</strong></td><td>Cluster</td><td>Registry credentials. The operator can read a pull secret whose name it learned from a pod specification; it cannot enumerate what a namespace holds. Credentials are used at scan time and never stored.</td></tr>
+    <tr><td><code>pods/eviction</code>: create</td><td>Cluster, <strong>only if <code>rbac.allowEnforce: true</code></strong> (default false)</td><td>Runtime enforcement is armed with two keys: the policy chooses <code>enforce</code> mode and the chart grants the permission. A compromised operator on an audit-only install has nothing to evict with. Eviction, not delete, so PodDisruptionBudgets are honoured.</td></tr>
+    <tr><td><code>validatingwebhookconfigurations</code>: update</td><td>Cluster, restricted by <code>resourceNames</code> to its own configuration</td><td>Publishing and rotating its own CA bundle. It cannot touch any other webhook in the cluster.</td></tr>
+    <tr><td><code>secrets</code>: write</td><td>Namespace, restricted by <code>resourceNames</code> to <code>attestkeep-webhook-tls</code> and <code>attestkeep-evidence-key</code></td><td>The serving certificate and the evidence signing key. The operator creates and rotates exactly these two Secrets in its own namespace. There is no <code>delete</code> verb on Secrets anywhere in the role set.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Every outbound connection</h2>
+
+<p>This is the table for your firewall ticket. Nothing else leaves the cluster — there is no analytics, no crash reporting, no telemetry SDK. The one version string that leaves is the operator version on the licence check.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Destination</th><th>Port</th><th>Required?</th><th>Knob</th><th>If blocked</th></tr></thead>
+  <tbody>
+    <tr><td><code>lic.attestkeep.com</code></td><td>443</td><td>Yes</td><td><code>license.serverUrl</code></td><td>Activation is impossible; an activated install keeps running on its held certificate and degrades to Community when that certificate expires. See <a href="/licensing/">Licensing</a>.</td></tr>
+    <tr><td><code>ghcr.io</code> (Trivy vulnerability DB)</td><td>443</td><td>For scanning</td><td><code>trivy.dbRepository</code> — mirror it into your own registry</td><td>The existing database keeps working and ages; <code>attestkeep_vulnerability_db_age_seconds</code> tells you by how much.</td></tr>
+    <tr><td>Your image registries</td><td>443</td><td>For scanning</td><td>Pull secrets resolved from pod specs; <code>scan.insecureRegistries</code> for HTTP</td><td>Scans fail for images there; admission behaviour follows your policy's cold-image setting.</td></tr>
+    <tr><td><code>ghcr.io/attestkeep/attestkeep-k8s</code> (kubelet image pull)</td><td>443</td><td>At install</td><td><code>image.repository</code> — mirror it</td><td>Pods cannot start.</td></tr>
+    <tr><td>Sigstore TUF + public Rekor (via cosign)</td><td>443</td><td>No</td><td><code>scan.cosignOffline: true</code></td><td>With keyed signing and offline mode on, verification stays local. See <a href="/air-gapped/">Air-gapped</a>.</td></tr>
+    <tr><td>Release feed</td><td>443</td><td>No — <strong>off by default, no default host</strong></td><td><code>updates.endpoint</code></td><td>An installation that was never told where to look never looks. Report-only even when on; nothing is downloaded.</td></tr>
+    <tr><td>Your OTLP collector</td><td>4317/4318</td><td>No — off by default</td><td><code>OTEL_EXPORTER_OTLP_ENDPOINT</code></td><td>Exporters are never started.</td></tr>
+    <tr><td>Your Slack/Teams/webhook URLs, your SMTP server</td><td>443 / 587 / 465</td><td>No</td><td>Configured per channel in the console</td><td>Sends fail and are logged; admission is never blocked by a notification. Webhook posts refuse loopback and link-local targets at dial time, so a channel URL cannot be pointed at cloud metadata.</td></tr>
+    <tr><td>Your SSO identity provider</td><td>443</td><td>No — Enterprise, config-gated</td><td><code>sso.*</code></td><td>That sign-in method fails; local accounts are unaffected.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>The chart ships no NetworkPolicy: your perimeter is yours to define, and the table above is exactly what an egress policy for this namespace needs to allow.</p>
+
+<h2>If our licence server were compromised</h2>
+
+<p>The question a security team should ask about any vendor with a phone-home path. The honest answer, from how the client is built:</p>
+
+<ul>
+  <li><strong>It cannot instruct your cluster.</strong> The licence protocol has two response shapes: a certificate and a renewal status. There is no code path in the operator where a licence-server response selects a policy, a namespace, an image rule, a URL, or an executable. Nothing is ever downloaded from it.</li>
+  <li><strong>It cannot grant itself anything.</strong> Certificates are Ed25519-signed and verified against a public key compiled into the binary at build time — EdDSA only, so <code>alg</code> downgrade tricks are out by construction. Certificates are also bound to your cluster's fingerprint: a certificate issued for another cluster does not verify on yours.</li>
+  <li><strong>What it could do is turn your entitlement off.</strong> A hostile server can answer <code>revoked</code>, and the operator honours that answer. The result is a downgrade, not a takeover — and you should know its exact shape: a deactivated installation <em>stops enforcing at admission</em> and admits with a warning, on the reasoning that a licensing failure must never take down your deployments. If someone can speak for our licence server to your cluster, the blast radius is your enforcement switching off — visibly, in the console and in every admission response warning — never a workload it placed or a policy it changed.</li>
+  <li><strong>Silence does nothing.</strong> Network errors and server failures are deliberately read as outages, not as answers: a bad deploy of the licence server cannot revoke customers. Your install runs on its held certificate until that certificate's own expiry.</li>
+</ul>
+
+<p>The evidence signing key is generated inside your cluster and never issued by the licence server; the server's certificate merely names your key so third parties can tie the two together. See the <a href="/evidence-trust/">evidence trust model</a>.</p>
+    <footer class="content__foot">
+      <p>Attestkeep — container image security for Kubernetes.</p>
+      <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>
+    </footer>
+  </main>
+</div>
+
+<script src="/assets/docs.js" defer></script>
+</body>
+</html>

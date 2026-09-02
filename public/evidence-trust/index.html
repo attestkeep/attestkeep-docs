@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evidence trust model — Attestkeep docs</title>
+<meta name="description" content="How the admission ledger is made tamper-evident, what one compromised access can and cannot rewrite, and exactly where the guarantees end.">
+<link rel="canonical" href="https://docs.attestkeep.com/evidence-trust/">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#071f20">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Evidence trust model — Attestkeep docs">
+<meta property="og:description" content="How the admission ledger is made tamper-evident, what one compromised access can and cannot rewrite, and exactly where the guarantees end.">
+<meta property="og:url" content="https://docs.attestkeep.com/evidence-trust/">
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/img/mark-white.svg" alt="" width="26" height="26">
+    <span class="wordmark">Attest<b>keep</b></span>
+    <span class="brand__tag">docs</span>
+  </a>
+  <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  <nav class="top__links">
+    <a href="https://attestkeep.com/pricing.html">Pricing</a>
+    <a href="https://attestkeep.com/app/signin">Sign in</a>
+  </nav>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+        <h2>Start here</h2>
+    <ul>
+      <li><a href="/">Overview</a></li>
+      <li><a href="/install/">Install</a></li>
+      <li><a href="/what-runs/">What runs in your cluster</a></li>
+      <li><a href="/licensing/">Licensing</a></li>
+    </ul>
+    <h2>Running it</h2>
+    <ul>
+      <li><a href="/configuration/">Configuration</a></li>
+      <li><a href="/policies/">Policies</a></li>
+      <li><a href="/admission/">Admission</a></li>
+      <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
+      <li><a href="/operations/">Operations and alerting</a></li>
+      <li><a href="/upgrade/">Upgrade</a></li>
+      <li><a href="/backup/">Backup and restore</a></li>
+    </ul>
+    <h2>Evidence and help</h2>
+    <ul>
+      <li><a href="/evidence-trust/" aria-current="page">Evidence trust model</a></li>
+      <li><a href="/compliance/">Compliance frameworks</a></li>
+      <li><a href="/verifying-reports/">Verifying a report</a></li>
+      <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      <li><a href="/support/">Support and security</a></li>
+      <li><a href="/releases/">Releases</a></li>
+    </ul>
+  </nav>
+
+  <main class="content" id="content">
+    <h1>Evidence trust model</h1>
+<p class="lede">An audit trail you could quietly rewrite is a story, not evidence. This page explains how the admission ledger is sealed, what an attacker with database access can and cannot do to it, and — because a trust page that hides its own limits is worthless — exactly where the guarantees end.</p>
+
+<h2>The problem</h2>
+
+<p>Every admission decision lands in PostgreSQL. A database is the right place to query them and the wrong place to trust them: anyone with write access could flip a <code>denied</code> to <code>allowed</code> after the fact, and a plain table would carry no trace. If your auditor asks "how do you know these records are what the webhook actually decided?", a backup schedule is not an answer.</p>
+
+<h2>How the ledger is sealed</h2>
+
+<ul>
+  <li><strong>Every record carries its own hash.</strong> At the moment a decision is written, the operator computes a SHA-256 over the record's content — timestamp, namespace, pod, image, digest, verdict, reason, policy name and policy hash, break-glass flag — under a fixed, versioned field order. The hash is computed by the operator, not the database, so a verifier can always recompute it.</li>
+  <li><strong>Records are sealed under signed checkpoints.</strong> On a schedule (hourly by default, or every 10,000 records, whichever comes first) the leader replica takes the unsealed range, builds a Merkle root over the record hashes in order, and signs a checkpoint: range, count, root, timestamp — and the hash of the <em>previous</em> checkpoint, so the seals form a chain back to the first one ever written.</li>
+  <li><strong>The signing key does not live in the database.</strong> Checkpoints are signed with an Ed25519 key that the operator generates inside your cluster and keeps in the <code>attestkeep-evidence-key</code> Secret. That split is the core of the design: rewriting ledger rows needs database write access, re-signing the seals needs cluster access to the Secret. One access is not enough — an attacker needs both, and those are different doors with different audit trails.</li>
+  <li><strong>The same key signs your evidence documents</strong> (as DSSE envelopes, under a different signature domain so one signature can never be replayed as the other), and our licence server's certificate names your key — so a third party can tie a document to your installation without trusting us to say so.</li>
+</ul>
+
+<h2>What verification checks</h2>
+
+<p>When an evidence document is generated, the operator re-verifies the whole ledger — not just the report period — and the document's ledger section states the result:</p>
+
+<ul>
+  <li><strong>Chain</strong>: every checkpoint links to its predecessor's hash; a broken link is reported with the sequence number where it breaks.</li>
+  <li><strong>Records</strong>: every sealed record's content hash is recomputed and compared; edited rows are listed by id in <code>tampered_record_ids</code>.</li>
+  <li><strong>Roots and counts</strong>: each checkpoint's Merkle root and record count are recomputed from the rows now present; a deletion inside a sealed range changes the count and lands in <code>root_mismatch_seqs</code>.</li>
+  <li><strong>Signatures</strong>: every checkpoint signature is verified against the installation's public key; failures are listed in <code>signature_bad_seqs</code>.</li>
+</ul>
+
+<p><code>intact</code> is true only when all four pass. We have run this against a live tamper, not just in theory: flip one verdict with SQL and the next document names that record's id; delete a sealed row and the checkpoint's count betrays it.</p>
+
+<h2>Where the guarantees end</h2>
+
+<p>This is a tamper-<em>evidence</em> scheme, not a tamper-<em>proofing</em> one, and you should know its boundaries as precisely as its strengths:</p>
+
+<ul>
+  <li><strong>The unsealed tail is counted, not protected.</strong> Records written since the newest checkpoint have hashes but no seal over them yet — a window of at most the seal interval (default one hour) or 10,000 records. The document reports the tail's size; it cannot vouch for its contents.</li>
+  <li><strong><code>intact</code> speaks about what is sealed, not about coverage.</strong> An installation with sealing disabled, or a ledger with few checkpoints, verifies trivially. Read <code>intact</code> together with <code>sealing_enabled</code>, <code>checkpoints</code> and <code>unsealed_tail</code> — a document showing <code>intact: true, checkpoints: 0</code> is telling you there was nothing to check, and an auditor should treat it that way.</li>
+  <li><strong>An attacker with both accesses wins.</strong> Database write access <em>plus</em> the cluster access to read the signing key defeats the scheme — history can be rewritten and re-sealed. The design's claim is that this requires compromising two separately-audited surfaces, not that it is impossible.</li>
+  <li><strong>Records from before 0.3.4 are outside the scheme.</strong> Rows written by earlier versions have no content hash; they are reported separately as <code>legacy_unhashed</code> and are never sealed. The scheme protects history from the moment it was turned on.</li>
+  <li><strong>The auditor receives a signed verdict, not the raw seals.</strong> The evidence document carries the verification result under the installation's signature; the checkpoint rows themselves are not exported today. Independent re-verification of the DSSE envelope, the report digest and the certificate chain is fully supported (see <a href="/verifying-reports/">Verifying a report</a>); independent re-execution of the Merkle verification would require database access.</li>
+</ul>
+
+<h2>Operational notes</h2>
+
+<ul>
+  <li>The <code>attestkeep-evidence-key</code> Secret belongs in your backup scope — see <a href="/backup/">Backup and restore</a>. If it is lost, a new key is generated: new checkpoints sign with the new key, but checkpoints and evidence documents signed by the old key no longer verify against the installation's current key. Losing the key does not lose history; it loses the ability to vouch for old signatures.</li>
+  <li>The operator's own RBAC cannot delete the Secret — the role set carries no <code>delete</code> verb on Secrets. Deleting it requires your cluster credentials, which is exactly the kind of action your cluster audit log exists to record.</li>
+  <li>Sealing is controlled by <code>LEDGER_SEAL_INTERVAL</code> (default 1h; 0 disables sealing and, with it, the tamper evidence — the evidence document says so via <code>sealing_enabled</code>).</li>
+</ul>
+    <footer class="content__foot">
+      <p>Attestkeep — container image security for Kubernetes.</p>
+      <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>
+    </footer>
+  </main>
+</div>
+
+<script src="/assets/docs.js" defer></script>
+</body>
+</html>

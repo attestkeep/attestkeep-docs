@@ -39,6 +39,7 @@
     <ul>
       <li><a href="/">Overview</a></li>
       <li><a href="/install/">Install</a></li>
+      <li><a href="/what-runs/">What runs in your cluster</a></li>
       <li><a href="/licensing/">Licensing</a></li>
     </ul>
     <h2>Running it</h2>
@@ -47,11 +48,14 @@
       <li><a href="/policies/">Policies</a></li>
       <li><a href="/admission/">Admission</a></li>
       <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
+      <li><a href="/operations/">Operations and alerting</a></li>
       <li><a href="/upgrade/">Upgrade</a></li>
       <li><a href="/backup/" aria-current="page">Backup and restore</a></li>
     </ul>
     <h2>Evidence and help</h2>
     <ul>
+      <li><a href="/evidence-trust/">Evidence trust model</a></li>
       <li><a href="/compliance/">Compliance frameworks</a></li>
       <li><a href="/verifying-reports/">Verifying a report</a></li>
       <li><a href="/troubleshooting/">Troubleshooting</a></li>
@@ -73,11 +77,26 @@
     <tr><td>The database</td><td>The bundled PostgreSQL's volume, or the external database you pointed <code>externalDsnExistingSecret</code> at</td><td>Findings, decisions, exceptions, audit log, evidence archive, users and the licence certificate are gone. This is the backup that matters.</td></tr>
     <tr><td>Policies</td><td><code>ImageSecurityPolicy</code> resources — in the cluster, and ideally in git already</td><td>Re-apply from your repository; the chart reseeds a default if none exists.</td></tr>
     <tr><td>The session key</td><td>Secret <code>attestkeep-session</code> (unless you supplied <code>api.session.existingSecret</code>)</td><td>Everyone is signed out and signs in again. Nothing else.</td></tr>
+    <tr><td>The evidence signing key</td><td>Secret <code>attestkeep-evidence-key</code> — created by the operator, not the chart</td><td>A new key is generated and new records seal under it, but checkpoints and evidence documents signed by the old key no longer verify against the installation's current key. History survives; the ability to vouch for old signatures does not. See the <a href="/evidence-trust/">evidence trust model</a>.</td></tr>
   </tbody>
 </table>
 </div>
 
 <p>The webhook's serving certificate is not on the list: the operator reissues it and republishes the CA bundle on its own. The activation key is not either — reinstalling into the same cluster produces the same fingerprint, so the existing licence slot is simply picked up again at activation, as <a href="/licensing/">Licensing</a> describes.</p>
+
+<h2>Configuration export — the bundle</h2>
+
+<p>Since 0.3.4, Settings → Backup exports a JSON bundle of the configuration you built by hand: notification channels, triage decisions, the user list and policies. It exists for the two moves a database dump is the wrong shape for — standing up a second cluster with the same setup, and keeping a portable copy of decisions that took meetings to make.</p>
+
+<ul>
+  <li><strong>Credentials never leave.</strong> A webhook URL <em>is</em> the credential for the channel it names, so it is stripped on export; such a channel imports disabled and the report tells you to enter the URL again. Email recipient addresses stay — they are addresses, not secrets. Password hashes are never in the bundle.</li>
+  <li><strong>Import previews before it writes.</strong> The same bundle is first evaluated as a dry run: you see what would be added and what would be skipped, and confirm before anything changes.</li>
+  <li><strong>Existing records always win.</strong> A conflicting incoming channel, triage decision or policy is skipped and named in the report — never merged over what is there.</li>
+  <li><strong>Users are reported, not created.</strong> An account without a password or an invitation would be a door nobody can open honestly; the report lists who existed on the exporting side so you can invite them properly.</li>
+  <li><strong>Both directions land in the audit log</strong>, with counts.</li>
+</ul>
+
+<p>The bundle complements the database dump; it does not replace it. Findings, admission history, the ledger and its checkpoints only exist in PostgreSQL.</p>
 
 <h2>Backing up the bundled PostgreSQL</h2>
 

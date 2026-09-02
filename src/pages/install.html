@@ -9,7 +9,7 @@
 <h2>Before you start</h2>
 
 <ul>
-  <li>Kubernetes 1.27 or newer, any conformant distribution.</li>
+  <li>Kubernetes 1.27 or newer, any conformant distribution. The floor is tested, not assumed: the current release is installed and exercised — admission denial included — on 1.27 and on 1.35 with minikube, and the product's end-to-end suite runs against k3s.</li>
   <li>Permission to create a <code>ValidatingWebhookConfiguration</code> — cluster-scoped, so cluster-admin on the first install.</li>
   <li>A namespace of its own. The chart creates one.</li>
   <li>Roughly 20 GiB for the bundled PostgreSQL, or the DSN of one you already run.</li>
@@ -20,7 +20,7 @@
 <p>Every release is signed on its digest. The keyed check needs nothing beyond your registry and our public key, published at <a href="/cosign.pub">docs.attestkeep.com/cosign.pub</a>; see <a href="/releases/">Releases</a> for the keyless check and what each one proves.</p>
 
 <pre><code>curl -sO https://docs.attestkeep.com/cosign.pub
-cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.3</code></pre>
+cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.4</code></pre>
 
 <h2>Install</h2>
 

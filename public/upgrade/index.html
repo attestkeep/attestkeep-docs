@@ -39,6 +39,7 @@
     <ul>
       <li><a href="/">Overview</a></li>
       <li><a href="/install/">Install</a></li>
+      <li><a href="/what-runs/">What runs in your cluster</a></li>
       <li><a href="/licensing/">Licensing</a></li>
     </ul>
     <h2>Running it</h2>
@@ -47,11 +48,14 @@
       <li><a href="/policies/">Policies</a></li>
       <li><a href="/admission/">Admission</a></li>
       <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
+      <li><a href="/operations/">Operations and alerting</a></li>
       <li><a href="/upgrade/" aria-current="page">Upgrade</a></li>
       <li><a href="/backup/">Backup and restore</a></li>
     </ul>
     <h2>Evidence and help</h2>
     <ul>
+      <li><a href="/evidence-trust/">Evidence trust model</a></li>
       <li><a href="/compliance/">Compliance frameworks</a></li>
       <li><a href="/verifying-reports/">Verifying a report</a></li>
       <li><a href="/troubleshooting/">Troubleshooting</a></li>
@@ -72,7 +76,7 @@
 <p>Pin the version if your change process needs it:</p>
 
 <pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
-  --namespace attestkeep --version 0.3.3 --wait</code></pre>
+  --namespace attestkeep --version 0.3.4 --wait</code></pre>
 
 <h2>What happens to the database</h2>
 
@@ -86,7 +90,7 @@
 
 <p>Every release is signed. Check it before you upgrade:</p>
 
-<pre><code>cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.3.3 \
+<pre><code>cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.3.4 \
   --certificate-identity-regexp '^https://github.com/attestkeep/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com</code></pre>
 

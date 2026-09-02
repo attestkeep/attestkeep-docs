@@ -14,8 +14,39 @@ that cannot reach the transparency log. Verify the digest, not the tag.
 
 ```sh
 curl -sO https://docs.attestkeep.com/cosign.pub
-cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.3
+cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.4
 ```
+
+## 0.3.4 — 2026-09-02
+
+**Added — the admission ledger is now tamper-evident.** Every admission
+decision is content-hashed when it is written, and the operator periodically
+seals the ledger with signed checkpoints: each checkpoint carries the Merkle
+root of the records in its range and chains to the previous checkpoint's
+hash. The signing key is generated into the `attestkeep-evidence-key`
+Secret — never stored in PostgreSQL — so rewriting ledger rows and re-signing
+the seals require two different accesses. Evidence documents gain a ledger
+section that states whether the record set verifies, and names the exact
+records and seals that do not.
+
+**Added — configuration export and import.** Settings → Backup downloads a
+JSON bundle of notification channels, triage decisions, the user list and
+policies, and imports it on another installation with a dry-run preview
+before anything is written. Credentials never leave the cluster: webhook
+URLs are stripped on export and such channels arrive disabled until the URL
+is entered again; user accounts are listed but never auto-created; on
+conflict the record already present always wins and the import report says
+what was skipped. Both directions are written to the audit log.
+
+**Fixed — an installation with no licence could land on the sign-in screen
+instead of activation.** When no licence is active and no account exists,
+sign-in now returns to the activation flow instead of a dead end.
+
+**Changed — chart RBAC names one more Secret.** The namespaced write access
+that previously covered only the webhook TLS Secret now also names
+`attestkeep-evidence-key`. It stays `resourceNames`-scoped — the operator can
+manage exactly those two Secrets in its own namespace, nothing else gains
+write access anywhere.
 
 ## 0.3.3 — 2026-09-01
 

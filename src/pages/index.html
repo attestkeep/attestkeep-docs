@@ -32,15 +32,30 @@
 
 <p>The single exception is licensing, and it is deliberately narrow: one endpoint, once a day, carrying three values. See <a href="/licensing/">Licensing</a> for exactly what leaves the cluster and what happens when it cannot.</p>
 
+<h2>You can build the gate for free — the question is the record</h2>
+
+<p>Be clear-eyed about this, because your platform team will ask: admission policy engines and in-cluster scanners exist as excellent open source, and if what you need is "block <code>:latest</code> and fail critical CVEs", you can assemble that without us. What that assembly does not give you is the part auditors and incident reviews actually consume:</p>
+
+<ul>
+  <li><strong>A decision record with integrity.</strong> Every admission decision here is content-hashed at write time and sealed under signed, chained checkpoints — flip one verdict in the database and the next evidence document names the exact record. A stack of controller logs cannot make that claim. See the <a href="/evidence-trust/">evidence trust model</a>.</li>
+  <li><strong>Decisions tied to the policy that made them.</strong> Each record carries the hash of the policy as it stood at that moment — "what rule was in force when this was admitted" is a lookup, not an archaeology project through git history and deploy timestamps.</li>
+  <li><strong>Honest gaps.</strong> Windows where the webhook was down or unverifiable are recorded and printed in the evidence, and the reconciliation sweep names what got in during them. A control that cannot testify about its own outages is a control your auditor discounts.</li>
+  <li><strong>One surface.</strong> Scan results, signature verification, admission, exceptions with expiry and justification, and the evidence package that ties them together — maintained as one product, not as glue code your team owns forever.</li>
+</ul>
+
+<p>If none of that is on your requirements list, use the free tools — genuinely. The moment someone asks you to <em>prove</em> what your gate did and when, this is the product.</p>
+
 <h2>Where to go next</h2>
 
 <ul>
   <li><a href="/install/">Install</a> — one Helm command, and the one value worth setting on the first run.</li>
+  <li><a href="/what-runs/">What runs in your cluster</a> — the full inventory: workloads, RBAC, every outbound connection.</li>
   <li><a href="/licensing/">Licensing</a> — plans, cluster slots, the daily check, and what happens offline.</li>
   <li><a href="/admission/">Admission</a> — how a decision is made, and the two settings that change your posture.</li>
+  <li><a href="/verify-enforcement/">Prove it is enforcing</a> — the five-minute check that the gate is really standing.</li>
   <li><a href="/air-gapped/">Air-gapped clusters</a> — mirroring the database and what signature verification means without a transparency log.</li>
 </ul>
 
 <div class="note">
-  <p><strong>Current version: 0.3.3.</strong> Every published version, what it changed and how to verify what you pulled is on the <a href="/releases/">Releases</a> page.</p>
+  <p><strong>Current version: 0.3.4.</strong> Every published version, what it changed and how to verify what you pulled is on the <a href="/releases/">Releases</a> page.</p>
 </div>

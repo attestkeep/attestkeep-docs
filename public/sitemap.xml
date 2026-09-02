@@ -2,13 +2,17 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://docs.attestkeep.com/</loc></url>
   <url><loc>https://docs.attestkeep.com/install/</loc></url>
+  <url><loc>https://docs.attestkeep.com/what-runs/</loc></url>
   <url><loc>https://docs.attestkeep.com/licensing/</loc></url>
   <url><loc>https://docs.attestkeep.com/configuration/</loc></url>
   <url><loc>https://docs.attestkeep.com/policies/</loc></url>
   <url><loc>https://docs.attestkeep.com/admission/</loc></url>
   <url><loc>https://docs.attestkeep.com/air-gapped/</loc></url>
+  <url><loc>https://docs.attestkeep.com/verify-enforcement/</loc></url>
+  <url><loc>https://docs.attestkeep.com/operations/</loc></url>
   <url><loc>https://docs.attestkeep.com/upgrade/</loc></url>
   <url><loc>https://docs.attestkeep.com/backup/</loc></url>
+  <url><loc>https://docs.attestkeep.com/evidence-trust/</loc></url>
   <url><loc>https://docs.attestkeep.com/compliance/</loc></url>
   <url><loc>https://docs.attestkeep.com/verifying-reports/</loc></url>
   <url><loc>https://docs.attestkeep.com/troubleshooting/</loc></url>

@@ -39,6 +39,7 @@
     <ul>
       <li><a href="/">Overview</a></li>
       <li><a href="/install/" aria-current="page">Install</a></li>
+      <li><a href="/what-runs/">What runs in your cluster</a></li>
       <li><a href="/licensing/">Licensing</a></li>
     </ul>
     <h2>Running it</h2>
@@ -47,11 +48,14 @@
       <li><a href="/policies/">Policies</a></li>
       <li><a href="/admission/">Admission</a></li>
       <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
+      <li><a href="/operations/">Operations and alerting</a></li>
       <li><a href="/upgrade/">Upgrade</a></li>
       <li><a href="/backup/">Backup and restore</a></li>
     </ul>
     <h2>Evidence and help</h2>
     <ul>
+      <li><a href="/evidence-trust/">Evidence trust model</a></li>
       <li><a href="/compliance/">Compliance frameworks</a></li>
       <li><a href="/verifying-reports/">Verifying a report</a></li>
       <li><a href="/troubleshooting/">Troubleshooting</a></li>
@@ -67,7 +71,7 @@
 <h2>Before you start</h2>
 
 <ul>
-  <li>Kubernetes 1.27 or newer, any conformant distribution.</li>
+  <li>Kubernetes 1.27 or newer, any conformant distribution. The floor is tested, not assumed: the current release is installed and exercised — admission denial included — on 1.27 and on 1.35 with minikube, and the product's end-to-end suite runs against k3s.</li>
   <li>Permission to create a <code>ValidatingWebhookConfiguration</code> — cluster-scoped, so cluster-admin on the first install.</li>
   <li>A namespace of its own. The chart creates one.</li>
   <li>Roughly 20 GiB for the bundled PostgreSQL, or the DSN of one you already run.</li>
@@ -78,7 +82,7 @@
 <p>Every release is signed on its digest. The keyed check needs nothing beyond your registry and our public key, published at <a href="/cosign.pub">docs.attestkeep.com/cosign.pub</a>; see <a href="/releases/">Releases</a> for the keyless check and what each one proves.</p>
 
 <pre><code>curl -sO https://docs.attestkeep.com/cosign.pub
-cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.3</code></pre>
+cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.4</code></pre>
 
 <h2>Install</h2>
 

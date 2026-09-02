@@ -11,14 +11,21 @@ attestkeep-docs/
 │   ├── nav.json          — kenar çubuğunun kaynağı; burada olmayan sayfa
 │   │                       build'i düşürür (öksüz sayfa yayınlanmaz)
 │   └── pages/            — her sayfanın gövdesi + <!--meta {...} --> bloğu
-│       ├── index         — ürün ne yapar, admission nasıl karar verir, nereden başlanır
-│       ├── install       — Helm ile kurulum, ilk kurulumda ayarlanacak tek değer
+│       ├── index         — ürün ne yapar, admission nasıl karar verir, ücretsiz araçlara karşı konum, nereden başlanır
+│       ├── install       — Helm ile kurulum, test edilen K8s tabanı (1.27/1.35), ilk değer
+│       ├── what-runs     — cluster envanteri: workload'lar, RBAC gerekçeleriyle, tüm egress tablosu, lisans sunucusu ele geçirilirse ne olur
 │       ├── licensing     — planlar, aktivasyon, küme slotları, günlük kontrol
 │       ├── configuration — Helm değerleri; konsolda kalanların ayrımı
 │       ├── admission     — karar akışı, failurePolicy ve coldImagePolicy duruşu
+│       ├── verify-enforcement — 5 dakikalık runbook: kötü pod at, reddi gör, kaydı doğrula
+│       ├── operations    — probe'lar, DB kesintisi davranışı, HA, hangi metrik uyandırır, GitOps/ArgoCD
 │       ├── air-gapped    — veritabanı aynalama, transparency log'suz imza doğrulama
 │       ├── upgrade       — yükseltme, şema, geri alma, imza doğrulama
+│       ├── backup        — neyi yedekle (evidence-key dahil), config export/import, restore'un kanıta etkisi
+│       ├── evidence-trust — ledger mühürleme modeli, tek erişimin yapamadığı, garantilerin bittiği yer
 │       ├── compliance    — eşlenen çerçeveler, kanıt paketi içeriği, iddia edilmeyenler
+│       ├── verifying-reports — indirilen kanıt paketini bağımsız doğrulama
+│       ├── releases      — sürüm geçmişi, imza doğrulama komutları
 │       ├── troubleshooting — sahada gerçekten karşılaşılan beş şey
 │       ├── support       — hata bildirimi, açık bildirimi, plana göre destek
 │       └── 404           — gezinilebilir değil, bilerek nav dışında

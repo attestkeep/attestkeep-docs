@@ -1,0 +1,49 @@
+<!--meta {
+  "title": "Prove it is enforcing",
+  "description": "A five-minute runbook: throw a bad pod at the cluster, watch it bounce, and check the record — so you never have to take enforcement on faith."
+} -->
+
+<h1>Prove it is enforcing</h1>
+<p class="lede">An admission webhook that is silently not running looks exactly like a compliant cluster. This runbook takes five minutes, uses nothing but <code>kubectl</code>, and ends with you having seen a denial with your own eyes — run it after install, after upgrades, and any time trust needs re-earning.</p>
+
+<h2>1. Throw a bad pod at it</h2>
+
+<p>The default policy blocks the <code>:latest</code> tag, so the simplest possible violation is:</p>
+
+<pre><code>kubectl run enforcement-check --image=nginx:latest</code></pre>
+
+<p>Expected — the API server itself refuses, quoting the webhook:</p>
+
+<pre><code>Error from server: admission webhook "image-security.attestkeep.com" denied the request:
+image security policy: nginx:latest: the :latest tag is blocked by policy</code></pre>
+
+<p>Two things worth noticing in that line. The error comes from <code>Error from server</code> — the deny happened inside the API server's admission chain, not in some agent that might have been sleeping. And the reason names the policy rule, so a developer reading it in a CI log knows what to fix without filing a ticket.</p>
+
+<p>If the pod was <em>created</em> instead, enforcement is not working for you — go to step 4.</p>
+
+<h2>2. Confirm nothing was created</h2>
+
+<pre><code>kubectl get pod enforcement-check</code></pre>
+
+<p>Expected: <code>NotFound</code>. A denial at admission means the object never existed — there is no half-created workload to clean up.</p>
+
+<h2>3. Check the decision was recorded</h2>
+
+<p>Open the console: the dashboard's <em>Recently blocked admissions</em> panel now leads with this denial, same reason string. If you prefer the surface your monitoring uses, the metrics tell the same story: <code>attestkeep_admission_decisions_total{decision="denied"}</code> has moved.</p>
+
+<p>This step matters as much as the first: a denial that left no record would be enforcement without evidence, and half this product's point is that every decision has a record with a hash behind it.</p>
+
+<h2>4. If the pod went through</h2>
+
+<p>In order of likelihood:</p>
+
+<ul>
+  <li><strong>The namespace is bypassed.</strong> The webhook skips <code>kube-system</code>, <code>cert-manager</code>, its own namespace, and any namespace labelled <code>attestkeep.com/webhook=bypass</code>. Run the check from a normal workload namespace.</li>
+  <li><strong>The policy does not block what you threw.</strong> <code>kubectl get isp default -o yaml</code> — check <code>enforcement: Enforce</code> and <code>blockLatestTag: true</code>. An <code>Audit</code> policy records instead of denying, by design.</li>
+  <li><strong>The webhook is failing open.</strong> With the default <code>failurePolicy: Ignore</code>, an unreachable webhook admits silently. Check <code>attestkeep_webhook_distrusted</code> (it should be 0) and pod readiness in the <code>attestkeep</code> namespace. Any such window is written to the outage record and surfaces in the next evidence document — see <a href="/operations/">Operations</a>.</li>
+  <li><strong>The install is not activated.</strong> Every installation is licensed, the free edition included — and until a key is entered, nothing is enforced and every admission response says so in a warning. An activated free-edition install enforces exactly like a paid one.</li>
+</ul>
+
+<h2>What this does not prove</h2>
+
+<p>One denial proves the gate is standing, not that your policy is right. It says nothing about whether your thresholds match your risk appetite, whether signature requirements are on for the registries that matter, or what happened during past outage windows — those live in <a href="/policies/">Policies</a> and in your evidence documents. But it is the check that catches the failure mode that matters most: everything looking green while nothing is being checked at all.</p>

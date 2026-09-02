@@ -1,0 +1,85 @@
+<!--meta {
+  "title": "Operations and alerting",
+  "description": "What runs where, what breaks how, which metric should page you, and what a database outage actually does to admission."
+} -->
+
+<h1>Operations and alerting</h1>
+<p class="lede">This page answers the on-call questions: what should page me, what happens when the database goes away, and how do I run this with the availability I need.</p>
+
+<h2>Probes</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Endpoint</th><th>What it checks</th><th>Used as</th></tr></thead>
+  <tbody>
+    <tr><td><code>/healthz</code></td><td>Nothing beyond the process being up — it always answers <code>200</code>. A live process with a dead dependency is a readiness problem, not a liveness one.</td><td>Liveness probe (initial delay 10s, period 20s)</td></tr>
+    <tr><td><code>/readyz</code></td><td>The database, with a 3-second timeout. Unreachable → <code>503</code> and the replica leaves the Service. The reasoning is in the code: a replica that cannot read the verdict cache would admit everything.</td><td>Readiness probe (initial delay 5s, period 10s)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Both Deployments — operator and scanner — carry both probes. Rollouts, ArgoCD sync waves and <code>helm --wait</code> all key off readiness, so a deploy of Attestkeep itself does not report healthy until it can actually decide.</p>
+
+<h2>What a database outage does — and does not do</h2>
+
+<p>The verdict store and scan queue live in PostgreSQL, so with the database gone the operator cannot decide. What happens next is deliberate, and we have run it, not reasoned about it:</p>
+
+<ul>
+  <li>Replicas turn unready and leave the Service. They do not crash-loop; they come back the moment the database does, with no restart.</li>
+  <li>With the default <code>webhook.failurePolicy: Ignore</code>, the API server admits pods unchecked for the duration. That window is not silent: on recovery the operator finds the heartbeat gap and writes it to the outage record, and the next reconciliation sweep names every digest that entered without a decision.</li>
+  <li>Admission never fails closed <em>because of</em> the database alone: quota metering explicitly admits on a database error rather than blocking deploys, and a failed cache read falls back to a cold verification instead of a deny.</li>
+  <li>Scanning stops with the database and resumes with it — the queue is in the database, so nothing is lost, only delayed.</li>
+</ul>
+
+<p>If an unchecked window is unacceptable for you, set <code>webhook.failurePolicy: Fail</code> and read <a href="/admission/">Admission</a> for what that trades away. Evidence documents report the outage either way: the <code>availability</code> block lists every window with its start, end and cause, and <code>continuous</code> is true only under <code>Fail</code> with zero outages.</p>
+
+<h2>Availability of the pieces</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Component</th><th>Default</th><th>How to harden</th></tr></thead>
+  <tbody>
+    <tr><td>Operator / webhook</td><td>2 replicas, preferred anti-affinity across nodes, PodDisruptionBudget <code>minAvailable: 1</code></td><td>Raise <code>replicaCount</code>; the replicas serialise controller work through a PostgreSQL advisory lock, so scaling out is safe.</td></tr>
+    <tr><td>Scanner</td><td>1 replica, <code>Recreate</code> strategy</td><td>Raise <code>scanner.replicas</code> — the chart refuses the combination of multiple replicas and a ReadWriteOnce cache volume, and tells you why.</td></tr>
+    <tr><td>Bundled PostgreSQL</td><td>Single replica by design — it is a convenience, not an HA database</td><td>Point <code>externalDsn</code> (or <code>externalDsnExistingSecret</code>) at the PostgreSQL you already operate with replication and backups. The bundled StatefulSet then does not render at all.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>What should page you</h2>
+
+<p>Metrics are served on port <code>9090</code> at <code>/metrics</code>, exposed through the chart's Service. Series for every label combination exist from startup at zero, so absence of data is distinguishable from absence of denials.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Condition</th><th>Signal</th><th>Why it matters</th></tr></thead>
+  <tbody>
+    <tr><td>Admission is being bypassed</td><td><code>attestkeep_webhook_distrusted == 1</code></td><td>The operator dials its own webhook through the CA bundle published on the <code>ValidatingWebhookConfiguration</code>, exactly as the API server would. While this gauge is 1 under <code>failurePolicy: Ignore</code>, deployments are proceeding unchecked — the one failure mode that otherwise looks like a quiet cluster. This is the alert to treat as a page, not a ticket.</td></tr>
+    <tr><td>Something got in</td><td><code>attestkeep_runtime_unmatched_digests &gt; 0</code></td><td>The reconciliation sweep found running digests with no allowed admission behind them — side-loaded images, or arrivals during an outage window. Also raised as the <code>unverified_workload</code> notification, once per newly seen digest.</td></tr>
+    <tr><td>Database trouble</td><td>Readiness: pods unready on <code>/readyz</code> 503</td><td>There is deliberately no separate database gauge — unready replicas are the signal, and your existing <code>kube_pod_status_ready</code> alerting already covers it.</td></tr>
+    <tr><td>Scanning is falling behind</td><td><code>attestkeep_scan_queue_depth</code> sustained high; <code>attestkeep_scans_failed_total</code> rate vs <code>attestkeep_scans_completed_total</code></td><td>First-day queues on a large cluster drain over hours; a queue that only grows means the scanner cannot reach a registry or its database.</td></tr>
+    <tr><td>Vulnerability data going stale</td><td><code>attestkeep_vulnerability_db_age_seconds</code></td><td>Verdicts are only as fresh as the database behind them. The <code>trivy_db_failed</code> notification fires on failed updates.</td></tr>
+    <tr><td>Licence quota approaching</td><td><code>attestkeep_image_quota{kind="count"}</code> against <code>{kind="limit"}</code></td><td>Exhaustion denies only image names never seen this period — running workloads keep running. <code>threshold_80</code> / <code>threshold_100</code> notification events fire at the boundaries.</td></tr>
+    <tr><td>Denials worth reviewing</td><td><code>attestkeep_admission_denials_total{reason=…}</code></td><td>Reasons are labelled: <code>threshold</code>, <code>signature</code>, <code>tag</code>, <code>quota</code>, <code>unscanned</code> and friends — a spike in one reason is a story, a spike across all of them is a policy change.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Latency, if you watch it: <code>attestkeep_admission_duration_seconds</code> is a histogram labelled <code>path="cached"</code> or <code>"cold"</code> — the cached path is the one your rollouts feel. We do not publish latency numbers yet, because we have not measured them at a scale worth quoting; measure your own p99 from this series.</p>
+
+<h2>The outage record</h2>
+
+<p>Windows in which the control was not operating are recorded in the database (<code>webhook_outages</code>) and reported in every evidence document's <code>availability</code> block. Two things create an entry, both written when the operator can see again, with honest wording about what it cannot know:</p>
+
+<ul>
+  <li>A controller heartbeat gap of more than two minutes — every replica down, the database unreachable, or the cluster itself out; the record says exactly that.</li>
+  <li>A window in which the API server could not have verified the webhook against its published CA bundle — recorded from the moment distrust began to the moment the probe recovered.</li>
+</ul>
+
+<p>There is no dedicated console page for outages yet; they surface in evidence documents and are queryable in the database. The live counterpart is the <code>attestkeep_webhook_distrusted</code> gauge above.</p>
+
+<h2>GitOps, ArgoCD, and who applies things</h2>
+
+<p>Enforcement sits at pod admission, so it does not matter who does the applying: <code>kubectl</code>, ArgoCD, Flux, a Job, an operator reconciling its CRD — every pod CREATE and UPDATE outside the bypass namespaces passes the same <code>ValidatingWebhookConfiguration</code>. There is nothing to integrate and no per-tool plugin: if your GitOps controller tries to sync a workload whose image fails policy, the sync fails with the denial message as the error, which is exactly where you want to read it.</p>
+
+<p>Policies themselves are cluster-scoped CRDs and belong in git; <a href="/policies/">Policies</a> covers how console edits and git-managed policies coexist.</p>

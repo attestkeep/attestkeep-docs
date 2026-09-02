@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prove it is enforcing — Attestkeep docs</title>
+<meta name="description" content="A five-minute runbook: throw a bad pod at the cluster, watch it bounce, and check the record — so you never have to take enforcement on faith.">
+<link rel="canonical" href="https://docs.attestkeep.com/verify-enforcement/">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#071f20">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Prove it is enforcing — Attestkeep docs">
+<meta property="og:description" content="A five-minute runbook: throw a bad pod at the cluster, watch it bounce, and check the record — so you never have to take enforcement on faith.">
+<meta property="og:url" content="https://docs.attestkeep.com/verify-enforcement/">
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/img/mark-white.svg" alt="" width="26" height="26">
+    <span class="wordmark">Attest<b>keep</b></span>
+    <span class="brand__tag">docs</span>
+  </a>
+  <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  <nav class="top__links">
+    <a href="https://attestkeep.com/pricing.html">Pricing</a>
+    <a href="https://attestkeep.com/app/signin">Sign in</a>
+  </nav>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+        <h2>Start here</h2>
+    <ul>
+      <li><a href="/">Overview</a></li>
+      <li><a href="/install/">Install</a></li>
+      <li><a href="/what-runs/">What runs in your cluster</a></li>
+      <li><a href="/licensing/">Licensing</a></li>
+    </ul>
+    <h2>Running it</h2>
+    <ul>
+      <li><a href="/configuration/">Configuration</a></li>
+      <li><a href="/policies/">Policies</a></li>
+      <li><a href="/admission/">Admission</a></li>
+      <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/verify-enforcement/" aria-current="page">Prove it is enforcing</a></li>
+      <li><a href="/operations/">Operations and alerting</a></li>
+      <li><a href="/upgrade/">Upgrade</a></li>
+      <li><a href="/backup/">Backup and restore</a></li>
+    </ul>
+    <h2>Evidence and help</h2>
+    <ul>
+      <li><a href="/evidence-trust/">Evidence trust model</a></li>
+      <li><a href="/compliance/">Compliance frameworks</a></li>
+      <li><a href="/verifying-reports/">Verifying a report</a></li>
+      <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      <li><a href="/support/">Support and security</a></li>
+      <li><a href="/releases/">Releases</a></li>
+    </ul>
+  </nav>
+
+  <main class="content" id="content">
+    <h1>Prove it is enforcing</h1>
+<p class="lede">An admission webhook that is silently not running looks exactly like a compliant cluster. This runbook takes five minutes, uses nothing but <code>kubectl</code>, and ends with you having seen a denial with your own eyes — run it after install, after upgrades, and any time trust needs re-earning.</p>
+
+<h2>1. Throw a bad pod at it</h2>
+
+<p>The default policy blocks the <code>:latest</code> tag, so the simplest possible violation is:</p>
+
+<pre><code>kubectl run enforcement-check --image=nginx:latest</code></pre>
+
+<p>Expected — the API server itself refuses, quoting the webhook:</p>
+
+<pre><code>Error from server: admission webhook "image-security.attestkeep.com" denied the request:
+image security policy: nginx:latest: the :latest tag is blocked by policy</code></pre>
+
+<p>Two things worth noticing in that line. The error comes from <code>Error from server</code> — the deny happened inside the API server's admission chain, not in some agent that might have been sleeping. And the reason names the policy rule, so a developer reading it in a CI log knows what to fix without filing a ticket.</p>
+
+<p>If the pod was <em>created</em> instead, enforcement is not working for you — go to step 4.</p>
+
+<h2>2. Confirm nothing was created</h2>
+
+<pre><code>kubectl get pod enforcement-check</code></pre>
+
+<p>Expected: <code>NotFound</code>. A denial at admission means the object never existed — there is no half-created workload to clean up.</p>
+
+<h2>3. Check the decision was recorded</h2>
+
+<p>Open the console: the dashboard's <em>Recently blocked admissions</em> panel now leads with this denial, same reason string. If you prefer the surface your monitoring uses, the metrics tell the same story: <code>attestkeep_admission_decisions_total{decision="denied"}</code> has moved.</p>
+
+<p>This step matters as much as the first: a denial that left no record would be enforcement without evidence, and half this product's point is that every decision has a record with a hash behind it.</p>
+
+<h2>4. If the pod went through</h2>
+
+<p>In order of likelihood:</p>
+
+<ul>
+  <li><strong>The namespace is bypassed.</strong> The webhook skips <code>kube-system</code>, <code>cert-manager</code>, its own namespace, and any namespace labelled <code>attestkeep.com/webhook=bypass</code>. Run the check from a normal workload namespace.</li>
+  <li><strong>The policy does not block what you threw.</strong> <code>kubectl get isp default -o yaml</code> — check <code>enforcement: Enforce</code> and <code>blockLatestTag: true</code>. An <code>Audit</code> policy records instead of denying, by design.</li>
+  <li><strong>The webhook is failing open.</strong> With the default <code>failurePolicy: Ignore</code>, an unreachable webhook admits silently. Check <code>attestkeep_webhook_distrusted</code> (it should be 0) and pod readiness in the <code>attestkeep</code> namespace. Any such window is written to the outage record and surfaces in the next evidence document — see <a href="/operations/">Operations</a>.</li>
+  <li><strong>The install is not activated.</strong> Every installation is licensed, the free edition included — and until a key is entered, nothing is enforced and every admission response says so in a warning. An activated free-edition install enforces exactly like a paid one.</li>
+</ul>
+
+<h2>What this does not prove</h2>
+
+<p>One denial proves the gate is standing, not that your policy is right. It says nothing about whether your thresholds match your risk appetite, whether signature requirements are on for the registries that matter, or what happened during past outage windows — those live in <a href="/policies/">Policies</a> and in your evidence documents. But it is the check that catches the failure mode that matters most: everything looking green while nothing is being checked at all.</p>
+    <footer class="content__foot">
+      <p>Attestkeep — container image security for Kubernetes.</p>
+      <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>
+    </footer>
+  </main>
+</div>
+
+<script src="/assets/docs.js" defer></script>
+</body>
+</html>

@@ -39,6 +39,7 @@
     <ul>
       <li><a href="/">Overview</a></li>
       <li><a href="/install/">Install</a></li>
+      <li><a href="/what-runs/">What runs in your cluster</a></li>
       <li><a href="/licensing/">Licensing</a></li>
     </ul>
     <h2>Running it</h2>
@@ -47,11 +48,14 @@
       <li><a href="/policies/">Policies</a></li>
       <li><a href="/admission/">Admission</a></li>
       <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
+      <li><a href="/operations/">Operations and alerting</a></li>
       <li><a href="/upgrade/">Upgrade</a></li>
       <li><a href="/backup/">Backup and restore</a></li>
     </ul>
     <h2>Evidence and help</h2>
     <ul>
+      <li><a href="/evidence-trust/">Evidence trust model</a></li>
       <li><a href="/compliance/">Compliance frameworks</a></li>
       <li><a href="/verifying-reports/">Verifying a report</a></li>
       <li><a href="/troubleshooting/">Troubleshooting</a></li>
@@ -77,14 +81,30 @@
 
 <pre><code><span class="s"># keyed — works offline once you hold the key</span>
 curl -sO https://docs.attestkeep.com/cosign.pub
-cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.3
+cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.4
 
 <span class="s"># keyless — proves the digest was built by our release workflow on GitHub</span>
-cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.3.3 \
+cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.3.4 \
   --certificate-identity-regexp '^https://github.com/attestkeep/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com</code></pre>
 
 <p>Always verify the digest, not the tag: a tag can be moved to different content after it was signed, a digest cannot. This is the same argument the product makes to your own cluster in <code>digestEnforcement</code>.</p>
+
+<h2>v0.3.4</h2>
+
+<p>2026-09-02.</p>
+
+<p><strong>Added — the admission ledger is now tamper-evident.</strong> Every admission decision is content-hashed when it is written, and the operator periodically seals the ledger with signed checkpoints: each carries the Merkle root of the records in its range and chains to the previous checkpoint's hash. The signing key is generated into the <code>attestkeep-evidence-key</code> Secret — never stored in PostgreSQL — so rewriting ledger rows and re-signing the seals require two different accesses. Evidence documents gain a ledger section that states whether the record set verifies, and names the exact records and seals that do not. The full design is on the <a href="/evidence-trust/">evidence trust model</a> page.</p>
+
+<p><strong>Added — configuration export and import.</strong> Settings → Backup downloads a JSON bundle of notification channels, triage decisions, the user list and policies, and imports it on another installation with a dry-run preview before anything is written. Credentials never leave the cluster: webhook URLs are stripped on export and such channels arrive disabled until the URL is entered again; user accounts are listed but never auto-created; on conflict the record already present always wins, and the import report says what was skipped. Both directions are written to the audit log. Details on the <a href="/backup/">backup page</a>.</p>
+
+<p><strong>Fixed — an installation with no licence could land on the sign-in screen instead of activation.</strong> When no licence is active and no account exists, sign-in now returns to the activation flow instead of a dead end.</p>
+
+<p><strong>Changed — chart RBAC names one more Secret.</strong> The namespaced write access that previously covered only the webhook TLS Secret now also names <code>attestkeep-evidence-key</code>. It stays <code>resourceNames</code>-scoped — the operator can manage exactly those two Secrets in its own namespace, nothing else gains write access anywhere.</p>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 0.3.4 \
+  --namespace attestkeep --wait</code></pre>
 
 <h2>v0.3.3</h2>
 

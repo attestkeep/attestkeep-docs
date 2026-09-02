@@ -12,6 +12,10 @@
           "title": "Install"
         },
         {
+          "slug": "what-runs",
+          "title": "What runs in your cluster"
+        },
+        {
           "slug": "licensing",
           "title": "Licensing"
         }
@@ -37,6 +41,14 @@
           "title": "Air-gapped clusters"
         },
         {
+          "slug": "verify-enforcement",
+          "title": "Prove it is enforcing"
+        },
+        {
+          "slug": "operations",
+          "title": "Operations and alerting"
+        },
+        {
           "slug": "upgrade",
           "title": "Upgrade"
         },
@@ -49,6 +61,10 @@
     {
       "title": "Evidence and help",
       "pages": [
+        {
+          "slug": "evidence-trust",
+          "title": "Evidence trust model"
+        },
         {
           "slug": "compliance",
           "title": "Compliance frameworks"
