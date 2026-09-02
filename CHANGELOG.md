@@ -14,8 +14,30 @@ that cannot reach the transparency log. Verify the digest, not the tag.
 
 ```sh
 curl -sO https://docs.attestkeep.com/cosign.pub
-cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.4
+cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.5
 ```
+
+## 0.3.5 — 2026-09-02
+
+**Fixed — the console's licence card claimed what the price list does not
+sell.** It described Enterprise as unlimited clusters with an SLA and quoted
+wrong add-on prices. Enterprise includes five clusters (beyond five is an
+agreement), no SLA tier exists, and the add-ons are $1,200 per additional
+compliance framework and $3,000 per additional cluster, per year. Nothing
+about any licence changed — the card now tells the truth the licence server
+always enforced.
+
+**Added — the licence certificate's remaining runway is visible.** The
+certificate your installation holds is its offline runway: it slides forward
+on every successful daily check, so a date that stops moving means the
+renewal route is blocked. The dashboard's operator tile and the licence page
+now show the expiry and the days remaining, and turn amber inside the final
+week — the same boundary as the expiry notification.
+
+**Fixed — the verification link inside evidence packages led to a 404.** The
+README in every downloaded package pointed at a page address that does not
+exist on the documentation site; packages generated from 0.3.5 on carry the
+working address.
 
 ## 0.3.4 — 2026-09-02
 

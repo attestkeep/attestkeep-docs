@@ -109,7 +109,7 @@ docker.io/library/postgres:16  ─┴─ one image against the quota</code></pre
 
 <h2>Activation</h2>
 
-<p>Activation happens once per cluster and spends one slot. On the first run the operator generates a keypair inside the cluster, keeps the private half in a Secret, and sends only the public half with the activation request. The activation key itself travels exactly once.</p>
+<p>Activation happens once per cluster and spends one slot. On the first run the operator generates a keypair inside the cluster, keeps the private half in its own database, and sends only the public half with the activation request. The activation key itself travels exactly once.</p>
 
 <p>What is sent:</p>
 
