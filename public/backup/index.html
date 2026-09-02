@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backup and restore — Attestkeep docs</title>
+<meta name="description" content="What to back up, how to take a dump of the bundled PostgreSQL, how to restore it, and what a restore means for your evidence.">
+<link rel="canonical" href="https://docs.attestkeep.com/backup/">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#071f20">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Backup and restore — Attestkeep docs">
+<meta property="og:description" content="What to back up, how to take a dump of the bundled PostgreSQL, how to restore it, and what a restore means for your evidence.">
+<meta property="og:url" content="https://docs.attestkeep.com/backup/">
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/img/mark-white.svg" alt="" width="26" height="26">
+    <span class="wordmark">Attest<b>keep</b></span>
+    <span class="brand__tag">docs</span>
+  </a>
+  <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  <nav class="top__links">
+    <a href="https://attestkeep.com/pricing.html">Pricing</a>
+    <a href="https://attestkeep.com/app/signin">Sign in</a>
+  </nav>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+        <h2>Start here</h2>
+    <ul>
+      <li><a href="/">Overview</a></li>
+      <li><a href="/install/">Install</a></li>
+      <li><a href="/licensing/">Licensing</a></li>
+    </ul>
+    <h2>Running it</h2>
+    <ul>
+      <li><a href="/configuration/">Configuration</a></li>
+      <li><a href="/policies/">Policies</a></li>
+      <li><a href="/admission/">Admission</a></li>
+      <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/upgrade/">Upgrade</a></li>
+      <li><a href="/backup/" aria-current="page">Backup and restore</a></li>
+    </ul>
+    <h2>Evidence and help</h2>
+    <ul>
+      <li><a href="/compliance/">Compliance frameworks</a></li>
+      <li><a href="/verifying-reports/">Verifying a report</a></li>
+      <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      <li><a href="/support/">Support and security</a></li>
+      <li><a href="/releases/">Releases</a></li>
+    </ul>
+  </nav>
+
+  <main class="content" id="content">
+    <h1>Backup and restore</h1>
+<p class="lede">Everything the operator knows lives in PostgreSQL and in cluster resources. Back those up and an installation can be rebuilt; there is no hidden state anywhere else.</p>
+
+<h2>What to back up</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>What</th><th>Where</th><th>If you lose it</th></tr></thead>
+  <tbody>
+    <tr><td>The database</td><td>The bundled PostgreSQL's volume, or the external database you pointed <code>externalDsnExistingSecret</code> at</td><td>Findings, decisions, exceptions, audit log, evidence archive, users and the licence certificate are gone. This is the backup that matters.</td></tr>
+    <tr><td>Policies</td><td><code>ImageSecurityPolicy</code> resources — in the cluster, and ideally in git already</td><td>Re-apply from your repository; the chart reseeds a default if none exists.</td></tr>
+    <tr><td>The session key</td><td>Secret <code>attestkeep-session</code> (unless you supplied <code>api.session.existingSecret</code>)</td><td>Everyone is signed out and signs in again. Nothing else.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>The webhook's serving certificate is not on the list: the operator reissues it and republishes the CA bundle on its own. The activation key is not either — reinstalling into the same cluster produces the same fingerprint, so the existing licence slot is simply picked up again at activation, as <a href="/licensing/">Licensing</a> describes.</p>
+
+<h2>Backing up the bundled PostgreSQL</h2>
+
+<p>If you brought your own database, your existing backup regime already covers it and this section is not for you. The bundled database is a single-replica StatefulSet named <code>attestkeep-postgresql</code>, and a plain SQL dump is the portable answer:</p>
+
+<pre><code>kubectl -n attestkeep exec statefulset/attestkeep-postgresql -- \
+  sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' &gt; attestkeep.sql</code></pre>
+
+<p>Schedule it with whatever already runs your cron jobs, and store the file with your other backups. A volume snapshot of the PVC works too, if your storage class offers one — the dump is simply the answer that restores anywhere, including into a different storage class or a different cluster.</p>
+
+<h2>Restoring</h2>
+
+<p>Install the chart, stop the operator so nothing writes or migrates mid-restore, load the dump, start it again:</p>
+
+<pre><code>kubectl -n attestkeep scale deploy/attestkeep deploy/attestkeep-scanner --replicas=0
+
+kubectl -n attestkeep exec -i statefulset/attestkeep-postgresql -- \
+  sh -c 'psql -U "$POSTGRES_USER" -d postgres -c \
+    "DROP DATABASE \"$POSTGRES_DB\" WITH (FORCE); CREATE DATABASE \"$POSTGRES_DB\" OWNER \"$POSTGRES_USER\""'
+
+kubectl -n attestkeep exec -i statefulset/attestkeep-postgresql -- \
+  sh -c 'psql -q -U "$POSTGRES_USER" "$POSTGRES_DB"' &lt; attestkeep.sql
+
+kubectl -n attestkeep scale deploy/attestkeep --replicas=2
+kubectl -n attestkeep scale deploy/attestkeep-scanner --replicas=1</code></pre>
+
+<p>Restoring a dump into the same or a newer operator version is supported: migrations are recorded in the dump, and a newer operator applies only what the dump does not already carry. Restoring a <em>newer</em> dump into an <em>older</em> operator is not — migrations move forward only, which is the same rule <a href="/upgrade/">Upgrade</a> states for rollbacks.</p>
+
+<h2>What a restore means for your evidence</h2>
+
+<p>Everything recorded after the dump was taken is gone, and the evidence package does not pretend otherwise. The operator stamps a heartbeat as it runs; on the first pass after a restore it finds the last stamp at dump age and records the whole span since as a window in which the control was not operating. A period report covering it shows the gap, exactly as it shows any other outage.</p>
+
+<p>That is the honest cost of restoring from backup: you get your history back up to the dump, and the document says plainly where history is missing. A restore that could silently paper over the lost window would be a way to rewrite the record, and this product's evidence would be worth less for having it.</p>
+    <footer class="content__foot">
+      <p>Attestkeep — container image security for Kubernetes.</p>
+      <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>
+    </footer>
+  </main>
+</div>
+
+<script src="/assets/docs.js" defer></script>
+</body>
+</html>

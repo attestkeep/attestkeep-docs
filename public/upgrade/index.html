@@ -48,6 +48,7 @@
       <li><a href="/admission/">Admission</a></li>
       <li><a href="/air-gapped/">Air-gapped clusters</a></li>
       <li><a href="/upgrade/" aria-current="page">Upgrade</a></li>
+      <li><a href="/backup/">Backup and restore</a></li>
     </ul>
     <h2>Evidence and help</h2>
     <ul>
@@ -96,7 +97,7 @@
 <pre><code>helm rollback attestkeep --namespace attestkeep</code></pre>
 
 <div class="note">
-  <p><strong>Rolling back the chart does not roll back the schema.</strong> Migrations move forward only. A rollback across a release that changed the schema is a restore-from-backup exercise, not a Helm command, and the release notes say when that is the case.</p>
+  <p><strong>Rolling back the chart does not roll back the schema.</strong> Migrations move forward only. A rollback across a release that changed the schema is a restore-from-backup exercise, not a Helm command, and the release notes say when that is the case. <a href="/backup/">Backup and restore</a> is the page that exercise assumes you have read before you needed it.</p>
 </div>
     <footer class="content__foot">
       <p>Attestkeep — container image security for Kubernetes.</p>

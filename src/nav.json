@@ -39,6 +39,10 @@
         {
           "slug": "upgrade",
           "title": "Upgrade"
+        },
+        {
+          "slug": "backup",
+          "title": "Backup and restore"
         }
       ]
     },
