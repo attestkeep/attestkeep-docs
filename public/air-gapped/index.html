@@ -89,7 +89,7 @@ helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
   <p><strong>This is a real reduction in what a signature proves.</strong> With the log, you learn that a signature exists and was publicly recorded when it was made. Without it, you learn that the artefact was signed by a key you trust. That is still worth having, and it is less. Choose it because your network requires it, not because it is simpler.</p>
 </div>
 
-<p>"Unsigned" and "could not be verified" are recorded as different answers, and your policy can treat them differently. Collapsing them would let a broken verification path look like a deliberate decision not to sign.</p>
+<p>"Unsigned" and "could not be verified" have the same effect on the verdict — under a policy that requires signatures both refuse — but they are different failures, and the operator says which one happened in its logs and metrics so a broken verification path does not pass for a deliberate decision not to sign.</p>
 
 <h2>Licensing needs one route out</h2>
 

@@ -19,10 +19,10 @@
 
 <pre><code><span class="s"># keyed — works offline once you hold the key</span>
 curl -sO https://docs.attestkeep.com/cosign.pub
-cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.2.0
+cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.3
 
 <span class="s"># keyless — proves the digest was built by our release workflow on GitHub</span>
-cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.2.0 \
+cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.3.3 \
   --certificate-identity-regexp '^https://github.com/attestkeep/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com</code></pre>
 
