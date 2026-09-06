@@ -4,7 +4,7 @@
 } -->
 
 <h1>Licensing</h1>
-<p class="lede">One activation key per plan. Each key binds to as many clusters as the plan allows, and you can move a slot yourself.</p>
+<p class="lede">One activation key per purchase, and a single Community key per account. Each key binds to as many clusters as its plan allows, and you can move a slot yourself.</p>
 
 <h2>Plans</h2>
 
@@ -71,6 +71,11 @@ docker.io/library/postgres:16  ─┴─ one image against the quota</code></pre
 <p>If the licence service cannot be reached, the installation keeps running on the certificate it already holds, for that certificate's remaining term. Only a cluster with permanently no route at all cannot hold a paid licence.</p>
 
 <p>A <code>revoked</code> or <code>released</code> answer applies at the next check. There is no offline licence format and no setting that turns the check off — that is a deliberate limit, and the only thing in the product that needs a route out.</p>
+
+<figure class="shot">
+  <img src="/img/manual/13-usage-license.png" alt="The Usage and Licence page: edition and status, image band, cluster count, activation and subscription dates, and the certificate's own expiry with days remaining, above a Community-versus-Enterprise capability table." loading="lazy" />
+  <figcaption>The console's <strong>Usage and Licence</strong> page shows both dates side by side. <strong>Expires</strong> is when the subscription ends; <strong>Certificate valid until</strong> is the runway the daily check keeps topped up. A certificate date that stops moving is the first sign of a blocked route out — visible here, well before the licence would lapse.</figcaption>
+</figure>
 
 <h2>Cluster slots</h2>
 

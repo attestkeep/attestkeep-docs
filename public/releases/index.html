@@ -28,6 +28,7 @@
   </a>
   <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
   <nav class="top__links">
+    <a href="https://github.com/attestkeep/attestkeep-docs/issues">GitHub issues</a>
     <a href="https://attestkeep.com/pricing.html">Pricing</a>
     <a href="https://attestkeep.com/app/signin">Sign in</a>
   </nav>
@@ -44,6 +45,7 @@
     </ul>
     <h2>Running it</h2>
     <ul>
+      <li><a href="/using-the-console/">Using the console</a></li>
       <li><a href="/configuration/">Configuration</a></li>
       <li><a href="/policies/">Policies</a></li>
       <li><a href="/admission/">Admission</a></li>
@@ -90,11 +92,21 @@ cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.3.5 \
 
 <p>Always verify the digest, not the tag: a tag can be moved to different content after it was signed, a digest cannot. This is the same argument the product makes to your own cluster in <code>digestEnforcement</code>.</p>
 
+<h2>v0.3.6</h2>
+
+<p>2026-09-03.</p>
+
+<p><strong>Fixed — a pod blocked by workload hardening left no denial in the ledger. Upgrade if you run <code>workloadHardening</code> in <code>enforce</code> mode and rely on the ledger or evidence.</strong> The pod was correctly refused at admission, but only the per-image evaluation was written, and a clean image on an otherwise refused pod reads as allowed — so the ledger, and any evidence built from it, showed the block as an allow. The pod-level denial, carrying the failing control and its reason, is now recorded with the decision. Denials from before 0.3.6 were never written, so they cannot be added to evidence for those periods.</p>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 0.3.6 \
+  --namespace attestkeep --wait</code></pre>
+
 <h2>v0.3.5</h2>
 
 <p>2026-09-02.</p>
 
-<p><strong>Fixed — the console's licence card claimed what the price list does not sell.</strong> It described Enterprise as unlimited clusters with an SLA and quoted wrong add-on prices. Enterprise includes five clusters (beyond five is an agreement), no SLA tier exists, and the add-ons are $1,200 per additional compliance framework and $3,000 per additional cluster, per year. Nothing about any licence changed — the card now tells the truth the licence server always enforced.</p>
+<p><strong>Fixed — the console's licence card overstated what Enterprise includes.</strong> It described Enterprise as unlimited clusters with an SLA tier. Enterprise includes five clusters (beyond five is an agreement) and there is no SLA tier. Nothing about any licence changed — the card now matches what the licence server always enforced.</p>
 
 <p><strong>Added — the licence certificate's remaining runway is visible.</strong> The certificate your installation holds is its offline runway: it slides forward on every successful daily check, so a date that stops moving means the renewal route is blocked. The dashboard's operator tile and the licence page now show the expiry and the days remaining, and turn amber inside the final week — the same boundary as the expiry notification.</p>
 

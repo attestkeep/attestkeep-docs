@@ -25,6 +25,10 @@
       "title": "Running it",
       "pages": [
         {
+          "slug": "using-the-console",
+          "title": "Using the console"
+        },
+        {
           "slug": "configuration",
           "title": "Configuration"
         },

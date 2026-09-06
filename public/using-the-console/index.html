@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Using the console — Attestkeep docs</title>
+<meta name="description" content="A screen-by-screen walk-through of the console: the security overview, triaging a vulnerability, and generating the evidence package an auditor reads.">
+<link rel="canonical" href="https://docs.attestkeep.com/using-the-console/">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#071f20">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Using the console — Attestkeep docs">
+<meta property="og:description" content="A screen-by-screen walk-through of the console: the security overview, triaging a vulnerability, and generating the evidence package an auditor reads.">
+<meta property="og:url" content="https://docs.attestkeep.com/using-the-console/">
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/img/mark-white.svg" alt="" width="26" height="26">
+    <span class="wordmark">Attest<b>keep</b></span>
+    <span class="brand__tag">docs</span>
+  </a>
+  <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  <nav class="top__links">
+    <a href="https://github.com/attestkeep/attestkeep-docs/issues">GitHub issues</a>
+    <a href="https://attestkeep.com/pricing.html">Pricing</a>
+    <a href="https://attestkeep.com/app/signin">Sign in</a>
+  </nav>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+        <h2>Start here</h2>
+    <ul>
+      <li><a href="/">Overview</a></li>
+      <li><a href="/install/">Install</a></li>
+      <li><a href="/what-runs/">What runs in your cluster</a></li>
+      <li><a href="/licensing/">Licensing</a></li>
+    </ul>
+    <h2>Running it</h2>
+    <ul>
+      <li><a href="/using-the-console/" aria-current="page">Using the console</a></li>
+      <li><a href="/configuration/">Configuration</a></li>
+      <li><a href="/policies/">Policies</a></li>
+      <li><a href="/admission/">Admission</a></li>
+      <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
+      <li><a href="/operations/">Operations and alerting</a></li>
+      <li><a href="/upgrade/">Upgrade</a></li>
+      <li><a href="/backup/">Backup and restore</a></li>
+    </ul>
+    <h2>Evidence and help</h2>
+    <ul>
+      <li><a href="/evidence-trust/">Evidence trust model</a></li>
+      <li><a href="/compliance/">Compliance frameworks</a></li>
+      <li><a href="/verifying-reports/">Verifying a report</a></li>
+      <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      <li><a href="/support/">Support and security</a></li>
+      <li><a href="/releases/">Releases</a></li>
+    </ul>
+  </nav>
+
+  <main class="content" id="content">
+    <h1>Using the console</h1>
+<p class="lede">What each screen does, in the order you meet them. The screenshots are the real console; your own numbers will differ.</p>
+
+<h2>The security overview</h2>
+
+<p>The dashboard is the posture of one cluster at a glance: operator health, the admission webhook's state, the database, and the vulnerability feed — then the counts that matter, image coverage, what was blocked, and where you stand against your monthly image band.</p>
+
+<figure class="shot">
+  <img src="/img/manual/04-dashboard.png" alt="The security overview: health tiles across the top, coverage and quota counts below, a severity trend and a compliance donut." loading="lazy" />
+  <figcaption>The overview warns you before any of these becomes an incident: a webhook failing open, a single operator replica, a licence certificate inside its final week, a workload running that admission never saw.</figcaption>
+</figure>
+
+<h2>Policies — what admission allows</h2>
+
+<p>A policy is the rule admission applies: which severities deny, whether a signature and an attestation are required, whether <code>:latest</code> and floating tags are allowed, and whether the whole policy runs in <strong>enforce</strong> (deny for real) or <strong>audit</strong> (record what it would have denied, deny nothing). One policy is the cluster-wide default; others bind to a namespace. The list is the whole rule set at a glance.</p>
+
+<figure class="shot">
+  <img src="/img/manual/12-policies.png" alt="The policies list: a cluster-wide default in enforce mode and a namespace policy in audit mode, each with its rule summary and required supply-chain checks; a break-glass banner is active on a third policy." loading="lazy" />
+  <figcaption>Each row states the mode, the namespaces it covers, the rule summary, and the supply-chain checks it requires. The banner at the top is <strong>break-glass</strong> in force on one policy — enforcement suspended for a named incident, with who approved it, the incident reference, and when it expires. That is the same override that later shows up in the evidence package.</figcaption>
+</figure>
+
+<h2>Vulnerabilities</h2>
+
+<p>Every finding across your images, grouped by CVE, with the installed and fixed versions side by side and how many images each affects. The filters narrow by severity, by whether a fix exists, and by triage state, so a view like "critical, fixable, untriaged" is three filters, not a scroll through everything.</p>
+
+<figure class="shot">
+  <img src="/img/manual/05-vulnerabilities.png" alt="The vulnerabilities list: CVEs with severity, package, installed and fixed versions, affected image count and triage state." loading="lazy" />
+  <figcaption>The triage column tells you at a glance what still needs a decision. "Partly triaged" means some affected images carry a decision and some do not.</figcaption>
+</figure>
+
+<h2>Triaging a finding</h2>
+
+<p>A finding you have assessed does not have to keep blocking or keep nagging. Expand a CVE and open <strong>Triage</strong>. A triage decision is a record an auditor reads, so it is deliberately not a silent mute:</p>
+
+<ol class="steps">
+  <li>Choose the <strong>status</strong> — false positive, accepted risk, or under investigation.</li>
+  <li>Write a <strong>justification</strong>. It is required, and it has to be long enough to actually say something.</li>
+  <li>Set an <strong>expiry</strong>. A triage cannot run forever — when it lapses, the finding returns to the policy verdict on its own.</li>
+</ol>
+
+<figure class="shot">
+  <img src="/img/manual/06-triage.png" alt="The triage dialog: status buttons, a justification field, an expiry date, and the account it is recorded under." loading="lazy" />
+  <figcaption>The scope, the required justification, and the ceiling on how long a triage may run are all stated on the form.</figcaption>
+</figure>
+
+<figure class="shot">
+  <img src="/img/manual/07-triage-filled.png" alt="The triage dialog filled in: accepted risk, a written justification, and an expiry date." loading="lazy" />
+  <figcaption>Every decision is stamped with who made it and when, and it lands in the audit log and the next evidence package.</figcaption>
+</figure>
+
+<h2>Evidence packages</h2>
+
+<p>Day-to-day scanning is one thing; the record you hand an external auditor is another. An evidence package is one consolidated, signed document per audit period, generated inside the cluster and verifiable by the auditor with their own tools.</p>
+
+<figure class="shot">
+  <img src="/img/manual/08-evidence-list.png" alt="The compliance evidence page: one signed package per period, with framework, signature state, recipient and delivery, and the installation's signing key." loading="lazy" />
+  <figcaption>Each package names the period, the framework it maps to, and whether it has been signed and delivered. The signing key at the bottom is what an auditor verifies a package against.</figcaption>
+</figure>
+
+<p>Open one and the whole document is there: the control statement, scan coverage, the compliance outcome clause by clause, admission decisions with their reasons, triage and break-glass usage, the supply chain, and the evidence chain.</p>
+
+<figure class="shot">
+  <img src="/img/manual/09-report.png" alt="An evidence package open: header with period and framework, control statement and scan coverage sections." loading="lazy" />
+  <figcaption>The report states what it cannot prove as plainly as what it can — a package that overclaims is worth less than one that admits its edges.</figcaption>
+</figure>
+
+<p>Every break-glass override is on the record too — who forced a deployment through, when, and why — because the moment a control is bypassed is exactly the moment an auditor wants named.</p>
+
+<figure class="shot">
+  <img src="/img/manual/11-report-breakglass.png" alt="The break-glass usage section of an evidence package." loading="lazy" />
+  <figcaption>Break-glass is not hidden. It is a section of the record, with the reason attached.</figcaption>
+</figure>
+
+<h2>Ledger integrity — can the record itself be believed</h2>
+
+<p>The last section answers the question a careful auditor asks about any audit trail: how do you know these records were not edited after the fact? Every admission decision is hashed when it is written and sealed under signed, chained checkpoints. The report re-verifies the whole ledger at the moment it is generated — every sealed record re-hashed, every seal's signature checked, the chain walked — and states the result.</p>
+
+<figure class="shot">
+  <img src="/img/manual/10-report-ledger.png" alt="The ledger integrity section: Intact, signed seals, records re-verified, and records not yet sealed." loading="lazy" />
+  <figcaption>Intact means every sealed record reproduced its hash, every seal its root, the chain is unbroken and every signature verifies. The full design, and the honest limits, are on the <a href="/evidence-trust/">evidence trust model</a> page.</figcaption>
+</figure>
+    <footer class="content__foot">
+      <p>Attestkeep — container image security for Kubernetes.</p>
+      <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>
+    </footer>
+  </main>
+</div>
+
+<script src="/assets/docs.js" defer></script>
+</body>
+</html>

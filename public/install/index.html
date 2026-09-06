@@ -28,6 +28,7 @@
   </a>
   <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
   <nav class="top__links">
+    <a href="https://github.com/attestkeep/attestkeep-docs/issues">GitHub issues</a>
     <a href="https://attestkeep.com/pricing.html">Pricing</a>
     <a href="https://attestkeep.com/app/signin">Sign in</a>
   </nav>
@@ -44,6 +45,7 @@
     </ul>
     <h2>Running it</h2>
     <ul>
+      <li><a href="/using-the-console/">Using the console</a></li>
       <li><a href="/configuration/">Configuration</a></li>
       <li><a href="/policies/">Policies</a></li>
       <li><a href="/admission/">Admission</a></li>
@@ -71,7 +73,7 @@
 <h2>Before you start</h2>
 
 <ul>
-  <li>Kubernetes 1.27 or newer, any conformant distribution. The floor is tested, not assumed: the current release is installed and exercised — admission denial included — on 1.27 and on 1.35 with minikube, and the product's end-to-end suite runs against k3s.</li>
+  <li>Kubernetes 1.27+.</li>
   <li>Permission to create a <code>ValidatingWebhookConfiguration</code> — cluster-scoped, so cluster-admin on the first install.</li>
   <li>A namespace of its own. The chart creates one.</li>
   <li>Roughly 20 GiB for the bundled PostgreSQL, or the DSN of one you already run.</li>
@@ -99,7 +101,40 @@ helm install attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
 <pre><code>kubectl -n attestkeep get pods
 kubectl -n attestkeep port-forward svc/attestkeep 8080:8080</code></pre>
 
-<p>Then open <code>http://localhost:8080</code>. The first screen asks for an activation key; see <a href="/licensing/">Licensing</a> for where to get one.</p>
+<p>Then open <code>http://localhost:8080</code> and follow the first-run sequence below.</p>
+
+<h2>First run</h2>
+
+<p>The console walks a new installation through three screens, once. After that it is a normal sign-in.</p>
+
+<ol class="steps">
+  <li><strong>Enter your licence key.</strong> Every installation is licensed, the free Community edition included — paste the key from your <a href="/licensing/">Attestkeep account</a>. Activation happens once and binds the key to this cluster.</li>
+</ol>
+
+<figure class="shot">
+  <img src="/img/manual/01-activation.png" alt="The activation screen: a single field for the licence key." loading="lazy" />
+  <figcaption>Activation is the first screen. The key is exchanged for a signed certificate the operator verifies inside the cluster.</figcaption>
+</figure>
+
+<ol class="steps" start="2">
+  <li><strong>Create the owner account.</strong> The email and password you set here are how you sign in from now on. Whoever completes this first becomes the owner; the window closes the moment the account exists.</li>
+</ol>
+
+<figure class="shot">
+  <img src="/img/manual/02-create-account.png" alt="The create-account screen with email and password fields." loading="lazy" />
+  <figcaption>Bought a plan? Create this account first, then activate the paid key on the Usage &amp; Licence page — the account and the licence are separate.</figcaption>
+</figure>
+
+<ol class="steps" start="3">
+  <li><strong>Sign in.</strong> From here on this is the only screen you meet; authorization is always checked on the server, whatever the console shows.</li>
+</ol>
+
+<figure class="shot">
+  <img src="/img/manual/03-sign-in.png" alt="The sign-in screen." loading="lazy" />
+  <figcaption>The everyday entry point once the owner account exists.</figcaption>
+</figure>
+
+<p>You land on the security overview. What each screen does, with the same walk-through, is in <a href="/using-the-console/">Using the console</a>.</p>
 
 <h2>The database builds itself</h2>
 

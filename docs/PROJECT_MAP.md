@@ -14,8 +14,9 @@ attestkeep-docs/
 │       ├── index         — ürün ne yapar, admission nasıl karar verir, ücretsiz araçlara karşı konum, nereden başlanır
 │       ├── install       — Helm ile kurulum, test edilen K8s tabanı (1.27/1.35), ilk değer
 │       ├── what-runs     — cluster envanteri: workload'lar, RBAC gerekçeleriyle, tüm egress tablosu, lisans sunucusu ele geçirilirse ne olur
-│       ├── licensing     — planlar, aktivasyon, küme slotları, günlük kontrol
-│       ├── configuration — Helm değerleri; konsolda kalanların ayrımı
+│       ├── licensing     — planlar, aktivasyon, küme slotları, günlük kontrol (Usage/Licence ekranı + sertifika runway görseli)
+│       ├── using-the-console — konsol ekran ekran: güvenlik özeti, politikalar, açıklar, triyaj, kanıt paketi, break-glass, ledger (görselli kılavuz)
+│       ├── configuration — Helm değerleri; konsolda kalanların ayrımı (SSO ekranı görseli)
 │       ├── admission     — karar akışı, failurePolicy ve coldImagePolicy duruşu
 │       ├── verify-enforcement — 5 dakikalık runbook: kötü pod at, reddi gör, kaydı doğrula
 │       ├── operations    — probe'lar, DB kesintisi davranışı, HA, hangi metrik uyandırır, GitOps/ArgoCD
@@ -38,7 +39,7 @@ attestkeep-docs/
 │   ├── assets/docs.css   — yalnızca doküman kabuğu
 │   ├── assets/docs.js    — dar ekranda menüyü açar; sitedeki tek script
 │   ├── fonts/            — Archivo + JetBrains Mono, kendi origin'imizden
-│   └── img/              — mark-white.svg, favicon.svg
+│   └── img/              — mark-white.svg, favicon.svg + manual/ (kullanım kılavuzu ekran görüntüleri)
 ├── deploy/nginx.conf     — uzantısız URL, CSP ve güvenlik başlıkları, cache sınıfları
 └── Dockerfile            — node ile render+check, nginx ile servis
 ```

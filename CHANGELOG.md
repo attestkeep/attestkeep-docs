@@ -17,15 +17,17 @@ curl -sO https://docs.attestkeep.com/cosign.pub
 cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.5
 ```
 
+## 0.3.6 — 2026-09-03
+
+**Fixed — a pod blocked by workload hardening left no denial in the ledger. Upgrade if you run `workloadHardening` in `enforce` mode and rely on the ledger or evidence.** The pod was correctly refused at admission, but only the per-image evaluation was written, and a clean image on an otherwise refused pod reads as allowed — so the ledger, and any evidence built from it, showed the block as an allow. The pod-level denial, carrying the failing control and its reason, is now recorded with the decision. Denials from before 0.3.6 were never written, so they cannot be added to evidence for those periods.
+
 ## 0.3.5 — 2026-09-02
 
-**Fixed — the console's licence card claimed what the price list does not
-sell.** It described Enterprise as unlimited clusters with an SLA and quoted
-wrong add-on prices. Enterprise includes five clusters (beyond five is an
-agreement), no SLA tier exists, and the add-ons are $1,200 per additional
-compliance framework and $3,000 per additional cluster, per year. Nothing
-about any licence changed — the card now tells the truth the licence server
-always enforced.
+**Fixed — the console's licence card overstated what Enterprise includes.** It
+described Enterprise as unlimited clusters with an SLA tier. Enterprise
+includes five clusters (beyond five is an agreement) and there is no SLA tier.
+Nothing about any licence changed — the card now matches what the licence
+server always enforced.
 
 **Added — the licence certificate's remaining runway is visible.** The
 certificate your installation holds is its offline runway: it slides forward

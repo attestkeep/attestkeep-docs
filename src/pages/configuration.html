@@ -93,3 +93,8 @@
 </ul>
 
 <p>The dividing line: a Helm value describes how the installation is shaped, and everything a person changes while operating it belongs where they can change it without a deploy.</p>
+
+<figure class="shot">
+  <img src="/img/manual/14-sso.png" alt="The Single Sign-On page: OIDC providers with their issuer and client id, a stored secret, the fixed redirect URI to register with each provider, an on-sign-in-page toggle, and a test-connection action." loading="lazy" />
+  <figcaption>Single sign-on is one of these console-managed settings. Each provider bounces the browser back to one fixed <strong>redirect URI</strong> on this installation — register it with the provider exactly, down to the trailing slash, or the sign-in is refused. A provider can be tested and toggled on the sign-in page without a redeploy. SSO is an Enterprise capability, and the server is always the real gate on who gets in.</figcaption>
+</figure>
