@@ -17,6 +17,16 @@ curl -sO https://docs.attestkeep.com/cosign.pub
 cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.5
 ```
 
+## 1.0.0 — 2026-09-06
+
+**Changed — 1.0.0 is the 0.3.6 line declared stable. Nothing about an installed policy, licence or evidence document changes on upgrade.**
+
+**Changed — `admissionTiming: DenyUntilScanned` is available in every edition, Community included.** Policy behaviour is never gated by licence; only capacity is (clusters, frameworks, image names). A Community policy that already set it was silently treated as AllowAndScan; from 1.0.0 it is honoured.
+
+**Fixed — the daily licence check is now one call a day per cluster, however many operator pods run and however often they restart.** Every replica used to check in two minutes after its own start, so a rolling restart or two spent the day's allowance and the pods logged a refusal they could not act on. The check time is recorded in the operator's database and shared by all replicas. Enforcement was never affected: the certificate keeps working for its thirty-day term.
+
+**Changed — the dashboard no longer marks the default `failurePolicy: Ignore` as needing attention.** The tile explains the trade instead: while the webhook is unreachable pods are admitted unreviewed, the window is recorded for your evidence, and the hourly reconciliation sweep reviews what came in. Set `webhook.failurePolicy: Fail` for a gate that holds while the operator is down.
+
 ## 0.3.6 — 2026-09-03
 
 **Fixed — a pod blocked by workload hardening left no denial in the ledger. Upgrade if you run `workloadHardening` in `enforce` mode and rely on the ledger or evidence.** The pod was correctly refused at admission, but only the per-image evaluation was written, and a clean image on an otherwise refused pod reads as allowed — so the ledger, and any evidence built from it, showed the block as an allow. The pod-level denial, carrying the failing control and its reason, is now recorded with the decision. Denials from before 0.3.6 were never written, so they cannot be added to evidence for those periods.

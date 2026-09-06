@@ -147,6 +147,12 @@ spec:
 values if the gate must hold even while the operator is down — see
 <a href="/admission/">Admission</a> for what that trade costs.</p>
 
+<p>Either way the first scan of a new digest runs in the background. On a fresh cluster it can take
+a few minutes — the scanner pulls the image and the vulnerability database is cold — and until it
+finishes the image shows as <em>Unknown</em> on the Images page with the reason "admitted before first
+scan". Every later admission of that digest decides on the finished report. Both timings are available
+in every edition, Community included; <strong>Rescan</strong> on the Images page runs a scan on demand.</p>
+
 <h2>Example: break-glass</h2>
 
 <p>Production is down, the fix is an image the policy refuses, and the incident channel has

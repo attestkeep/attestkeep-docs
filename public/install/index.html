@@ -136,6 +136,8 @@ kubectl -n attestkeep port-forward svc/attestkeep 8080:8080</code></pre>
 
 <p>You land on the security overview. What each screen does, with the same walk-through, is in <a href="/using-the-console/">Using the console</a>.</p>
 
+<p>The first images you deploy are admitted and scanned in the background; on a fresh cluster the first report takes a few minutes, and the Images page shows <em>Unknown</em> until it lands. If a workload must not start before its scan exists, set <code>admissionTiming: DenyUntilScanned</code> in the policy — see <a href="/policies/">Policies</a>.</p>
+
 <h2>The database builds itself</h2>
 
 <p>Migrations are compiled into the binary and applied on first connection, each recorded so it runs exactly once. There is no SQL for you to run and no migration step to forget on upgrade.</p>
