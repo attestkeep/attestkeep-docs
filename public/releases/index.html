@@ -92,6 +92,18 @@ cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.3.5 \
 
 <p>Always verify the digest, not the tag: a tag can be moved to different content after it was signed, a digest cannot. This is the same argument the product makes to your own cluster in <code>digestEnforcement</code>.</p>
 
+<h2>v1.0.1</h2>
+
+<p>2026-09-06.</p>
+
+<p><strong>Changed — the Team edition includes 100 image names a month; the console's Usage &amp; Licence page said 50.</strong> Licences already issued carry the new band; a cluster picks it up at its next daily check.</p>
+
+<p><strong>Fixed — operator pods that start together no longer all run the daily licence check at once.</strong> Each pod's first check is spread over a short window, so the first one records it and the rest wait out the day, as 1.0.0 intended.</p>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 1.0.1 \
+  --namespace attestkeep --wait</code></pre>
+
 <h2>v1.0.0</h2>
 
 <p>2026-09-06.</p>

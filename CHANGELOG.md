@@ -17,6 +17,12 @@ curl -sO https://docs.attestkeep.com/cosign.pub
 cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.5
 ```
 
+## 1.0.1 — 2026-09-06
+
+**Changed — the Team edition includes 100 image names a month; the console's Usage & Licence page said 50.** Licences already issued carry the new band; a cluster picks it up at its next daily check.
+
+**Fixed — operator pods that start together no longer all run the daily licence check at once.** Each pod's first check is spread over a short window, so the first one records it and the rest wait out the day, as 1.0.0 intended.
+
 ## 1.0.0 — 2026-09-06
 
 **Changed — 1.0.0 is the 0.3.6 line declared stable. Nothing about an installed policy, licence or evidence document changes on upgrade.**
