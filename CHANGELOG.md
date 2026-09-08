@@ -19,7 +19,7 @@ cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.5
 
 ## 1.0.2 — 2026-09-08
 
-**Fixed — every scan record in the operator's database named Trivy 0.55.0 in its database-version field, whatever the operator actually ran.** The value was a constant. A scan record now carries the version of the Trivy that produced it and the vulnerability database version it ran against, both read at scan time. Records written before the upgrade keep the old value. The tool versions printed in the evidence document were read from the running binary and were never affected.
+**Fixed — every scan record in the operator's database named Trivy 0.55.0 in its database-version field, whatever the operator actually ran.** The value was a constant. A scan record now carries the version of the Trivy that produced it and the vulnerability database version it ran against, both read at scan time. Records written before the upgrade keep the old value until their next scan. The tool versions printed in the evidence document were read from the running binary and were never affected.
 
 ## 1.0.1 — 2026-09-06
 
