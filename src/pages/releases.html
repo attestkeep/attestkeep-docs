@@ -28,6 +28,16 @@ cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.3.5 \
 
 <p>Always verify the digest, not the tag: a tag can be moved to different content after it was signed, a digest cannot. This is the same argument the product makes to your own cluster in <code>digestEnforcement</code>.</p>
 
+<h2>v1.0.2</h2>
+
+<p>2026-09-08.</p>
+
+<p><strong>Fixed &mdash; every scan record in the operator's database named Trivy 0.55.0 in its database-version field, whatever the operator actually ran.</strong> The value was a constant. A scan record now carries the version of the Trivy that produced it and the vulnerability database version it ran against, both read at scan time. Records written before the upgrade keep the old value. The tool versions printed in the evidence document were read from the running binary and were never affected.</p>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 1.0.2 \
+  --namespace attestkeep --wait</code></pre>
+
 <h2>v1.0.1</h2>
 
 <p>2026-09-06.</p>
