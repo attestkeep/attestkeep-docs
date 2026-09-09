@@ -16,6 +16,10 @@
           "title": "What runs in your cluster"
         },
         {
+          "slug": "scope",
+          "title": "What Attestkeep does not do"
+        },
+        {
           "slug": "licensing",
           "title": "Licensing"
         }

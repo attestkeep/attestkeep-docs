@@ -14,6 +14,7 @@ attestkeep-docs/
 │       ├── index         — ürün ne yapar, admission nasıl karar verir, ücretsiz araçlara karşı konum, nereden başlanır
 │       ├── install       — Helm ile kurulum, test edilen K8s tabanı (1.27/1.35), ilk değer
 │       ├── what-runs     — cluster envanteri: workload'lar, RBAC gerekçeleriyle, tüm egress tablosu, lisans sunucusu ele geçirilirse ne olur
+│       ├── scope         — kapsam dışı beş iş (runtime davranış tespiti, IaC/CIS taraması, CSPM, reachability analizi, repo bağımlılık taraması) ve her biri için yanına ne konulacağı
 │       ├── licensing     — planlar, aktivasyon, küme slotları, günlük kontrol (Usage/Licence ekranı + sertifika runway görseli)
 │       ├── using-the-console — konsol ekran ekran: güvenlik özeti, politikalar, açıklar, triyaj, kanıt paketi, break-glass, ledger (görselli kılavuz)
 │       ├── configuration — Helm değerleri; konsolda kalanların ayrımı (SSO ekranı görseli)

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What Attestkeep does not do — Attestkeep docs</title>
+<meta name="description" content="The five things this product deliberately leaves to something else — runtime behaviour, cluster misconfiguration, cloud posture, reachability analysis and repository scanning — and what to run beside it for each.">
+<link rel="canonical" href="https://docs.attestkeep.com/scope/">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#071f20">
+<meta property="og:type" content="article">
+<meta property="og:title" content="What Attestkeep does not do — Attestkeep docs">
+<meta property="og:description" content="The five things this product deliberately leaves to something else — runtime behaviour, cluster misconfiguration, cloud posture, reachability analysis and repository scanning — and what to run beside it for each.">
+<meta property="og:url" content="https://docs.attestkeep.com/scope/">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "What Attestkeep does not do",
+      "description": "The five things this product deliberately leaves to something else — runtime behaviour, cluster misconfiguration, cloud posture, reachability analysis and repository scanning — and what to run beside it for each.",
+      "url": "https://docs.attestkeep.com/scope/",
+      "inLanguage": "en",
+      "isPartOf": { "@type": "WebSite", "name": "Attestkeep docs", "url": "https://docs.attestkeep.com/" },
+      "publisher": { "@type": "Organization", "name": "Attestkeep", "url": "https://attestkeep.com/" }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Docs", "item": "https://docs.attestkeep.com/" },
+        { "@type": "ListItem", "position": 2, "name": "What Attestkeep does not do", "item": "https://docs.attestkeep.com/scope/" }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/img/mark-white.svg" alt="" width="26" height="26">
+    <span class="wordmark">Attest<b>keep</b></span>
+    <span class="brand__tag">docs</span>
+  </a>
+  <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  <nav class="top__links">
+    <a href="https://github.com/attestkeep/attestkeep-docs/issues">GitHub issues</a>
+    <a href="https://attestkeep.com/pricing.html">Pricing</a>
+    <a href="https://attestkeep.com/app/signin">Sign in</a>
+  </nav>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+        <h2>Start here</h2>
+    <ul>
+      <li><a href="/">Overview</a></li>
+      <li><a href="/install/">Install</a></li>
+      <li><a href="/what-runs/">What runs in your cluster</a></li>
+      <li><a href="/scope/" aria-current="page">What Attestkeep does not do</a></li>
+      <li><a href="/licensing/">Licensing</a></li>
+    </ul>
+    <h2>Running it</h2>
+    <ul>
+      <li><a href="/using-the-console/">Using the console</a></li>
+      <li><a href="/configuration/">Configuration</a></li>
+      <li><a href="/policies/">Policies</a></li>
+      <li><a href="/admission/">Admission</a></li>
+      <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
+      <li><a href="/operations/">Operations and alerting</a></li>
+      <li><a href="/upgrade/">Upgrade</a></li>
+      <li><a href="/backup/">Backup and restore</a></li>
+    </ul>
+    <h2>Evidence and help</h2>
+    <ul>
+      <li><a href="/evidence-trust/">Evidence trust model</a></li>
+      <li><a href="/compliance/">Compliance frameworks</a></li>
+      <li><a href="/verifying-reports/">Verifying a report</a></li>
+      <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      <li><a href="/support/">Support and security</a></li>
+      <li><a href="/releases/">Releases</a></li>
+    </ul>
+  </nav>
+
+  <main class="content" id="content">
+    <h1>What Attestkeep does not do</h1>
+<p class="lede">A security tool that answers "yes, we do that too" to every question is a tool nobody can plan around. Attestkeep decides what may enter the cluster and keeps the record of that decision. These five jobs are outside that line, on purpose, and here is what to run beside it for each.</p>
+
+<h2>The short version</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Not in this product</th><th>Why it sits outside the line</th><th>Pair with</th></tr></thead>
+  <tbody>
+    <tr><td>Runtime behaviour detection</td><td>It needs an agent on every node; Attestkeep has none.</td><td>Falco, Tetragon</td></tr>
+    <tr><td>Manifest and infrastructure misconfiguration scanning</td><td>It judges the cluster's own configuration, not what is entering it.</td><td>Kubescape, Checkov, kube-bench</td></tr>
+    <tr><td>Cloud account posture (CSPM)</td><td>The subject is the account, and Attestkeep never sees outside the cluster.</td><td>Your cloud provider's posture tooling, or a CSPM product</td></tr>
+    <tr><td>Code-level reachability analysis</td><td>It is a property of your source, not of the image.</td><td>Your SCA vendor</td></tr>
+    <tr><td>Repository dependency scanning and fix pull requests</td><td>It acts on the repository; Attestkeep acts on the image that reaches the cluster.</td><td>Dependabot, Renovate, Snyk</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Runtime behaviour detection</h2>
+
+<p>Attestkeep does not watch syscalls, does not profile processes, and does not flag network anomalies inside a running container. A container that was admitted and then starts a shell, reads a file it never touched before, or dials an address it has no business dialling produces no event here.</p>
+
+<p>This is a design consequence, not a gap waiting to be filled. Behavioural detection means a privileged agent on every node, seeing every process on that node. Attestkeep is two Deployments in one namespace — the operator and the scanner — with no DaemonSet, no host mounts and no node-level access; the <a href="/what-runs/">full inventory</a> is published precisely so you can check that. Adding behavioural detection would mean asking for the privilege we currently tell you we do not have.</p>
+
+<p>Pair it with Falco or Tetragon. Attestkeep is the gate; they are the patrol. The gate decides what is allowed through and can prove afterwards what it decided; the patrol watches what the admitted thing then does. Neither substitutes for the other, and a cluster that has funded only one of them should know which one it bought.</p>
+
+<h2>Manifest and infrastructure misconfiguration scanning</h2>
+
+<p>Attestkeep does not scan your Terraform, your Helm charts in a repository, or your manifests before they are applied, and it does not assess the cluster's own configuration against a CIS benchmark. Whether the API server has anonymous auth on, whether etcd is encrypted at rest, whether kubelet ports are exposed — none of that is read, scored or reported here.</p>
+
+<p>Pair it with Kubescape, or with Checkov and kube-bench.</p>
+
+<p>There is one honest overlap, and it is worth naming rather than glossing. The <code>workloadHardening</code> control in an <a href="/policies/">ImageSecurityPolicy</a> does inspect a pod's own specification at admission — privileged containers, host namespaces, hostPath mounts and their relatives — and can refuse on what it finds. That control exists because admission is the only place a pod can actually be refused for those things: a posture scanner can tell you the pod is privileged, but only the gate can decline to let it start. It looks at the object being admitted and nothing else. It does not audit the cluster's configuration, and it is not a benchmark report.</p>
+
+<h2>Cloud account context</h2>
+
+<p>Attestkeep has no view of your cloud account. IAM roles and trust policies, storage buckets and their public-access settings, security groups, load balancers and what they expose to the internet — all of it is outside this product, and the operator holds no cloud credentials that would let it look. Its horizon ends at the cluster it runs in.</p>
+
+<p>That means a workload can be admitted here on a perfectly clean image and still be reachable from the internet through a rule Attestkeep never saw, or hold a role far wider than it needs. Pair it with your cloud provider's own posture tooling, or with a CSPM product.</p>
+
+<h2>Code-level reachability analysis</h2>
+
+<p>When a scan reports a vulnerable package inside an image, Attestkeep does not determine whether the vulnerable function is ever called. There is no call-graph analysis in this product, so a finding in a library your application never invokes is reported the same as one on your hottest path. Severity and the thresholds in your policy are what separate them, and that is a blunter instrument than reachability.</p>
+
+<p>What Attestkeep does instead is accept the producer's statement. <code>requireVulnAttestation</code> makes an image carry a signed vulnerability-scan attestation, and <code>attestationMaxAge</code> keeps that statement fresh — the claim travels with the image, verified, rather than being re-derived at the gate. Version 1.1 will accept VEX documents on the same footing, so a "not affected" judgement your build pipeline already produces can be honoured at admission instead of re-argued in a triage screen.</p>
+
+<p>For reachability itself, pair with your SCA vendor. The output that matters here is a statement Attestkeep can verify and record.</p>
+
+<h2>Source repository dependency scanning</h2>
+
+<p>Attestkeep does not read your repositories. It does not watch lock files, does not open pull requests that bump a dependency, and has no connection to your source forge at all.</p>
+
+<p>The distinction is about the subject, not the depth. Attestkeep scans what is <em>inside the image that reaches the cluster</em> — operating system packages and language packages alike: npm and PyPI dependencies, Go modules embedded in the binary, JARs on the classpath. That is often a strictly different set from what the repository declares, because an image also carries base-layer packages nobody wrote a line of manifest for, and because the image that deployed on Tuesday was not necessarily built from the commit that is on the branch today. Repository scanning tells you what your next build will contain; Attestkeep tells you what is running now, and refuses it if your policy says so.</p>
+
+<p>Pair it with Dependabot or Renovate. Fixing a dependency belongs where the fix is committed.</p>
+
+<h2>The rule</h2>
+
+<p>The line is the door. What affects the decision made at that door — the image, its digest, its packages, its signature, its attestations, the specification of the pod asking to start, and the record of what was decided and under which policy — is inside this product. Watching what happens after the door, or judging the ground the door is set in, is not. Every one of the five above is a real job and most clusters need several of them; they are simply not this one, and a product that pretended otherwise would be harder to trust about the part it does do.</p>
+    <footer class="content__foot">
+      <p>Attestkeep — container image security for Kubernetes.</p>
+      <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>
+    </footer>
+  </main>
+</div>
+
+<script src="/assets/docs.js" defer></script>
+</body>
+</html>
