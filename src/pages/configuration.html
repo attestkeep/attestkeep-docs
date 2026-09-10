@@ -6,6 +6,8 @@
 <h1>Configuration</h1>
 <p class="lede">Installation shape comes from Helm values. Anything a person changes while running it lives in the console, so a policy edit is not a redeploy.</p>
 
+<p>An upgrade may be run with <code>helm upgrade --reuse-values</code>, which keeps the values you installed with and does not merge in the new chart's defaults. Every setting added since your installed version then takes the default documented here, so the flag is supported across versions — see <a href="/upgrade/">Upgrade</a>.</p>
+
 <h2>Identity and scale</h2>
 
 <div class="table-wrap">
@@ -47,6 +49,7 @@
     <tr><td><code>scan.rescanInterval</code></td><td><code>24h</code></td><td>How often a known digest is re-evaluated against a refreshed database.</td></tr>
     <tr><td><code>scan.insecureRegistries</code></td><td><code>[]</code></td><td>Registries served over plain HTTP. Must be named — silently downgrading a connection is not a decision a security tool makes for you.</td></tr>
     <tr><td><code>scan.cosignOffline</code></td><td><code>false</code></td><td>Verify against the key and skip the transparency log. See <a href="/air-gapped/">air-gapped</a> for what that costs.</td></tr>
+    <tr><td><code>kev.source</code></td><td>CISA's catalogue URL</td><td>Where the Known Exploited Vulnerabilities catalogue is fetched from, on the same six-hour cadence as the vulnerability database. A path or a <code>file://</code> URL reads a mirror inside the perimeter instead — the catalogue is a few megabytes of JSON, so whatever already carries files into your cluster can carry this one. An empty string refreshes nothing: the stored catalogue stays exactly as it is and findings keep being marked against it. What admission does about a marked finding is the policy's choice: <a href="/policies/"><code>spec.knownExploited</code></a>.</td></tr>
     <tr><td><code>reconcile.interval</code></td><td><code>1h</code></td><td>How often what is actually running — each container's observed <code>imageID</code> — is reconciled against the admission ledger, catching workloads that entered before the install, during an outage, or under <code>failurePolicy: Ignore</code>. <code>0</code> disables the sweep. What a finding does is the policy's choice: <a href="/policies/"><code>spec.runtimeReconciliation</code></a>.</td></tr>
     <tr><td><code>rbac.allowEnforce</code></td><td><code>false</code></td><td>Whether the operator may evict pods at all. Enforcement is armed with two keys: the policy chooses <code>enforce</code>, this grants the <code>pods/eviction</code> permission it needs. An audit-only install carries no eviction right.</td></tr>
   </tbody>
@@ -56,6 +59,40 @@
 <h2>Admission</h2>
 
 <p>See <a href="/admission/">Admission</a> — <code>webhook.failurePolicy</code> and <code>webhook.coldImagePolicy</code> are posture decisions rather than tuning, and they are explained there rather than listed here.</p>
+
+<h2>Runtime events (Falco)</h2>
+
+<p>Attestkeep does not ship, install or run Falco. These two values accept the alerts your own Falco already sends through Falcosidekick's generic webhook output and file them against the image that produced them. Nothing that arrives here changes an admission decision. The sender's side, the response codes and what the events then do are on <a href="/runtime-events/">Runtime events</a>.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Value</th><th>Default</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>integrations.falco.existingSecret.name</code></td><td><code>""</code></td><td>Holds the bearer token the endpoint requires. Until it is set, <code>/api/v1/integrations/falco</code> answers <code>404</code> and the integration does not exist.</td></tr>
+    <tr><td><code>integrations.falco.existingSecret.key</code></td><td><code>token</code></td><td></td></tr>
+    <tr><td><code>integrations.falco.minPriority</code></td><td><code>warning</code></td><td>Events below this are accepted and discarded. Falco's ordering: <code>emergency</code>, <code>alert</code>, <code>critical</code>, <code>error</code>, <code>warning</code>, <code>notice</code>, <code>informational</code>, <code>debug</code>. Set the same floor on the sender — dropping an event here still costs the delivery.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>The data key</h2>
+
+<p>The key that encrypts the credentials this installation stores for you — today the <a href="/issue-trackers/">issue-tracker</a> tokens that can open and close issues in your own GitHub, GitLab or Jira. Those tokens live in the product database, so without this key a backup or a dump handed to support would carry a working write credential for your forge.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Value</th><th>Default</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>api.dataKey.existingSecret.name</code></td><td><code>""</code></td><td>Empty means the chart generates <code>&lt;release&gt;-data-key</code> on first install and preserves it across upgrades. Point this at your own Secret to supply the key from a secret manager instead.</td></tr>
+    <tr><td><code>api.dataKey.existingSecret.key</code></td><td><code>data-key</code></td><td>The key inside that Secret.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<pre><code>kubectl -n attestkeep create secret generic attestkeep-data-key \
+  --from-literal=data-key="$(openssl rand -hex 32)"</code></pre>
+
+<p>It is never written into the product database — a key stored beside the data it protects is not a key — and there is no database fallback: with no key, saving an issue-tracker channel is refused rather than storing the token in the clear, and nothing else about the product changes. Re-keying is not offered in this version; if you replace the key, the credentials already stored cannot be opened and each tracker channel needs its token entered again. Back the Secret up with everything else on <a href="/backup/">Backup and restore</a>.</p>
 
 <h2>Observability</h2>
 

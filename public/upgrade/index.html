@@ -116,6 +116,22 @@
 
 <p>Each migration is recorded when it runs, so it runs exactly once no matter how many replicas start at the same time. Findings, decisions, exceptions and evidence survive the upgrade; nothing is rebuilt from scratch.</p>
 
+<h2>1.0.2 to 1.1.0</h2>
+
+<p>Migrations <code>0013</code> to <code>0020</code> are applied on the first start of the new version. They move forward only: the database cannot be taken back to a 1.0.2 schema by a Helm rollback, so a return to 1.0.2 is a restore from backup, not a <code>helm rollback</code>.</p>
+
+<p><code>helm upgrade --reuse-values</code> works across this version. Every value 1.1.0 adds carries a chart default, so an upgrade that keeps your installed values takes those defaults — <code>kev.source</code> pointing at CISA's catalogue, the Falco endpoint off, and the data key generated rather than supplied.</p>
+
+<p>Three things appear on the upgrade itself:</p>
+
+<ul>
+  <li>The chart generates a <code>&lt;release&gt;-data-key</code> Secret and preserves it from then on. <strong>Add it to your backup set.</strong> It encrypts the <a href="/issue-trackers/">issue-tracker</a> credentials this installation stores, and a credential sealed under a key you no longer hold cannot be opened: each tracker channel then needs its token entered again. See <a href="/backup/">Backup and restore</a>.</li>
+  <li>Tracker channels configured before 1.1.0 hold their token in plain text. One pass on the first start, on the leader, seals them in place and logs how many it changed. There is nothing to run by hand.</li>
+  <li>The ClusterRole gains read access to Services and Ingresses, which is what the <a href="/policies-context/"><code>exposed</code> signal</a> reads. An installation that manages its own RBAC has to grant the two rules itself; an operator that cannot list them derives exposure from the pod spec alone, logs a warning and admits.</li>
+</ul>
+
+<p>Nothing about an installed policy, licence or evidence document changes. Existing policies behave as before: the two new gates that have a default, <code>endOfLifeOS</code> and <code>knownExploited</code>, default to <code>warn</code>, and the provenance, VEX and deployment-context blocks are off until you write them.</p>
+
 <h2>What happens to admission during the rollout</h2>
 
 <p>With the default two replicas, one keeps answering while the other is replaced. With <code>failurePolicy: Ignore</code> a moment with no replica means unreviewed rather than blocked; with <code>Fail</code> it means deployments wait. That is the same trade described in <a href="/admission/">Admission</a>, and an upgrade is exactly when it becomes visible.</p>
@@ -135,7 +151,7 @@
 <pre><code>helm rollback attestkeep --namespace attestkeep</code></pre>
 
 <div class="note">
-  <p><strong>Rolling back the chart does not roll back the schema.</strong> Migrations move forward only. A rollback across a release that changed the schema is a restore-from-backup exercise, not a Helm command, and the release notes say when that is the case. <a href="/backup/">Backup and restore</a> is the page that exercise assumes you have read before you needed it.</p>
+  <p><strong>Rolling back the chart does not roll back the schema.</strong> Migrations move forward only, and no rollback of the database is offered. A rollback across a release that changed the schema — 1.0.2 to 1.1.0 is one, and the release notes say when a release is another — is a restore-from-backup exercise, not a Helm command. <a href="/backup/">Backup and restore</a> is the page that exercise assumes you have read before you needed it.</p>
 </div>
     <footer class="content__foot">
       <p>Attestkeep — container image security for Kubernetes.</p>
