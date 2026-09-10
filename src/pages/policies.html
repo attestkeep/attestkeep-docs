@@ -269,7 +269,7 @@ spec:
 
 <p>The base OS and its support state are shown on each image's detail panel. The KEV catalogue is kept as a local copy, refreshed every six hours, and every finding whose CVE appears on it is marked; the vulnerability and image pages carry a KEV badge with the catalogue's dates and can be filtered down to it, the dashboard shows which catalogue version is in force, and evidence packages record that version alongside the vulnerability database version. Triaged CVEs are excluded from this gate, the same way they are excluded from the severity thresholds, and a refusal names the CVEs rather than a count, so a refused deployment says what to fix.</p>
 
-<p>A cluster with no route to the internet points <code>kev.source</code> at a mirrored copy of the catalogue, or sets it empty to keep the copy it already has — see <a href="/configuration/">Configuration</a> and <a href="/air-gapped/">air-gapped clusters</a>.</p>
+<p>A cluster with no route to the internet points <code>kev.source</code> at a mirrored copy of the catalogue, or sets it empty to keep the copy it already has — see <a href="/configuration/"><code>kev.source</code></a>.</p>
 
 <h2>Build provenance</h2>
 

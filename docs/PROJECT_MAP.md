@@ -18,14 +18,26 @@ attestkeep-docs/
 │       ├── licensing     — planlar, aktivasyon, küme slotları, günlük kontrol (Usage/Licence ekranı + sertifika runway görseli)
 │       ├── using-the-console — konsol ekran ekran: güvenlik özeti, politikalar, açıklar, triyaj, kanıt paketi, break-glass, ledger (görselli kılavuz)
 │       ├── configuration — Helm değerleri; konsolda kalanların ayrımı (SSO ekranı görseli)
+│       ├── policies       — ImageSecurityPolicy: alan referansı, hazır politika
+│       │                   örnekleri, endOfLifeOS/knownExploited/provenance kapıları
+│       ├── policies-vex   — imzalı OpenVEX bildirimi bir bulguyu sayımdan nasıl çıkarır
+│       ├── policies-context — deploymentContext: altı sinyal, escalate kuralları,
+│       │                   ClusterRole'ün Services/Ingresses okuması
+│       ├── policies-whatif — taslak politikayı ledger üzerinde tekrar oynatma
 │       ├── admission     — karar akışı, failurePolicy ve coldImagePolicy duruşu
 │       ├── verify-enforcement — 5 dakikalık runbook: kötü pod at, reddi gör, kaydı doğrula
 │       ├── operations    — probe'lar, DB kesintisi davranışı, HA, hangi metrik uyandırır, GitOps/ArgoCD
 │       ├── air-gapped    — veritabanı aynalama, transparency log'suz imza doğrulama
-│       ├── upgrade       — yükseltme, şema, geri alma, imza doğrulama
-│       ├── backup        — neyi yedekle (evidence-key dahil), config export/import, restore'un kanıta etkisi
+│       ├── upgrade       — yükseltme, şema (1.0.2→1.1.0: 0013–0020, ileri yönlü),
+│       │                   geri alma, imza doğrulama
+│       ├── backup        — neyi yedekle (evidence-key ve data-key dahil), config export/import, restore'un kanıta etkisi
+│       ├── runtime-events — Falco/Falcosidekick webhook uçnoktası; admission kararını
+│       │                   değiştirmez, runtime tespiti kapsam dışı kalır
+│       ├── issue-trackers — GitHub/GitLab/Jira kanalları: dedup, dailyCap, kapatma
+│       │                   nedenleri, data-key ile şifreli kimlik bilgisi
 │       ├── evidence-trust — ledger mühürleme modeli, tek erişimin yapamadığı, garantilerin bittiği yer
-│       ├── compliance    — eşlenen çerçeveler, kanıt paketi içeriği, iddia edilmeyenler
+│       ├── compliance    — eşlenen 13 çerçeve (293 madde), kanıt paketi içeriği,
+│       │                   iddia edilmeyenler ve çeviri şerhleri
 │       ├── verifying-reports — indirilen kanıt paketini bağımsız doğrulama
 │       ├── releases      — sürüm geçmişi, imza doğrulama komutları
 │       ├── troubleshooting — sahada gerçekten karşılaşılan beş şey
