@@ -1,0 +1,163 @@
+<!--meta {
+  "title": "Deployment context",
+  "description": "How a policy judges an image more strictly according to where the pod is going to run: the six signals, what escalation does, and how to roll it out."
+} -->
+
+<h1>Deployment context</h1>
+<p class="lede">The same HIGH finding is one thing in an internet-facing pod running privileged on the host network, and another in a rootless batch job nothing outside the cluster can reach. Deployment context is where a policy says which is which.</p>
+
+<p>Until this existed, admission decided both the same way. The image half of a review counted severities, KEV entries, end-of-support and provenance; the pod half, <code>workloadHardening</code>, looked at privilege and host namespaces; and the two never met. An operator who wanted "block HIGH where it matters" had to block HIGH everywhere — and be overruled — or nowhere.</p>
+
+<div class="note">
+  <p><strong>It only ever escalates.</strong> There is no signal, and no combination of signals, that admits something the policy would otherwise have refused. Whatever the context says, the worst case is still readable from the policy text alone.</p>
+</div>
+
+<h2>The policy block</h2>
+
+<pre><code>apiVersion: attestkeep.com/v1alpha1
+kind: ImageSecurityPolicy
+metadata:
+  name: production-baseline
+spec:
+  thresholds:
+    blockCritical: true
+    blockHigh: false
+  deploymentContext:
+    mode: Escalate           # Ignore (default) | Escalate
+    signals:                 # empty = all six
+      - exposed
+      - privileged</code></pre>
+
+<p><code>mode: Ignore</code> is the default and what an absent block means. Under Ignore the signals are still derived and still written to the admission ledger; nothing changes about any decision. That is the mode to run first: the ledger and the <a href="/policies-whatif/">what-if replay</a> then say how much of the cluster <code>Escalate</code> would touch, before it touches any of it.</p>
+
+<p>An empty <code>signals</code> list under <code>Escalate</code> means all six. It is the reading an operator who wrote the mode and nothing else obviously intends, and it is the stricter one, which is the right default for a control that can only tighten. A signal name the operator does not derive is refused when the policy is saved — it would otherwise read as a working policy and escalate nothing, which is the one failure this feature exists to avoid: a control you believe is on.</p>
+
+<h2>The six signals</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Signal</th><th>What it means</th><th>Derived from</th></tr></thead>
+  <tbody>
+    <tr><td><code>privileged</code></td><td>A container asks for <code>securityContext.privileged</code>.</td><td>Hardening control PSW-01</td></tr>
+    <tr><td><code>root</code></td><td>An explicit UID 0, or neither the pod nor the container saying <code>runAsNonRoot</code>.</td><td>PSW-03</td></tr>
+    <tr><td><code>hostNamespace</code></td><td><code>hostNetwork</code>, <code>hostPID</code> or <code>hostIPC</code>.</td><td>PSW-05, PSW-06</td></tr>
+    <tr><td><code>hostFilesystem</code></td><td>A <code>hostPath</code> volume.</td><td>PSW-07</td></tr>
+    <tr><td><code>capabilities</code></td><td>A dangerous Linux capability is added.</td><td>PSW-04</td></tr>
+    <tr><td><code>exposed</code></td><td>The pod is reachable from outside the cluster.</td><td>The pod spec <strong>and</strong> the namespace's Services and Ingresses</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Five of the six are read off the workload-hardening findings the admission path already produces rather than re-derived from the pod spec. That is not only cheaper: it is the only way the two can be kept from disagreeing. A second implementation of "does this run as root" would eventually answer differently from the control you read in your own console.</p>
+
+<p>The signals are derived whatever <code>workloadHardening.mode</code> says, <code>off</code> included. That mode decides what admission does about the pod itself; the context is a fact about the pod, and a policy escalating on <code>privileged</code> must not silently stop escalating because somebody turned the hardening report off.</p>
+
+<p><code>root</code> deserves its own note. It follows PSW-03 exactly, which means a pod that says nothing about <code>runAsNonRoot</code> counts as root: an image that sets no <code>USER</code> runs as root, and the pod spec cannot show otherwise. On a cluster that has not adopted pod security standards this is most pods. It is a real signal and a broad one — select it deliberately, or leave it out and rely on the narrower five.</p>
+
+<h3>How <code>exposed</code> is decided</h3>
+
+<p>Being reachable is not a property of the pod spec alone: a Service selects pods by label and an Ingress routes to a Service. Four ways a pod counts as exposed, in the order they are established:</p>
+
+<ol>
+  <li><strong><code>hostNetwork</code></strong> — the pod is on the node's own network stack, so every port it listens on is a port on the node.</li>
+  <li><strong>A <code>hostPort</code></strong> — one port is published on the node whatever the pod's network namespace. Init and ephemeral containers count: an init container binds a host port exactly as effectively as an application container.</li>
+  <li><strong>A <code>NodePort</code> or <code>LoadBalancer</code> Service whose selector matches the pod</strong> — the cluster is publishing it deliberately.</li>
+  <li><strong>An Ingress naming a ClusterIP Service that matches the pod</strong> — the ingress controller is publishing it. Both the default backend and every path's backend count.</li>
+</ol>
+
+<p>A ClusterIP Service with no Ingress in front of it is <em>not</em> exposure. It is the ordinary way one workload reaches another inside a cluster, and treating it as external reach would put nearly every pod in the escalated set — which would make the feature useless rather than strict. A Service with no selector matches nothing: its endpoints are managed by hand, so it selects neither this pod nor any other.</p>
+
+<p>The denial names the evidence — <code>Service web (LoadBalancer)</code>, <code>Ingress acme-web -&gt; Service web</code>, <code>hostPort 8080</code> — because a deployer told their pod is "exposed" needs to know which object did it before they can argue with it. The same string is on the ledger row as <code>context_detail</code>.</p>
+
+<h2>What escalation actually does</h2>
+
+<p>Three rules, all one-directional. They apply to a pod carrying at least one <strong>selected</strong> signal, and to nothing else.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Policy says</th><th>A pod carrying a selected signal is judged as</th></tr></thead>
+  <tbody>
+    <tr><td><code>thresholds.blockCritical: true</code></td><td>also blocking HIGH</td></tr>
+    <tr><td><code>thresholds.blockHigh: true</code></td><td>also blocking MEDIUM</td></tr>
+    <tr><td><code>knownExploited: warn</code></td><td><code>block</code></td></tr>
+    <tr><td><code>endOfLifeOS: warn</code></td><td><code>block</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>And what it deliberately does not do:</p>
+
+<ul>
+  <li><strong><code>maxMedium</code> and <code>maxLow</code> are untouched.</strong> They are counts you chose, not severities, and halving a limit somebody picked is a different kind of tightening from moving a severity.</li>
+  <li><strong><code>ignore</code> stays <code>ignore</code></strong>, in both <code>knownExploited</code> and <code>endOfLifeOS</code>. An operator who switched a check off has decided something about their cluster, and a signal does not overrule a decision — escalation turns a warning into a refusal, never a silence into a warning.</li>
+  <li><strong>Nothing is ever loosened.</strong> No signal relaxes a threshold, admits an unsigned image, or waives a gate.</li>
+</ul>
+
+<p>An image the policy would have refused anyway is refused for the reason the policy already gave. Only a refusal that would <em>not</em> have happened elsewhere in the cluster is labelled <code>context</code>, and that is the whole distinction the label draws. What a denial reads like:</p>
+
+<pre><code>3 HIGH vulnerabilities, treated as CRITICAL because the pod is exposed
+(Service web (LoadBalancer)) and runs privileged</code></pre>
+
+<pre><code>debian 10 is past end of life; the policy warns, but the pod shares a host
+namespace so it is refused</code></pre>
+
+<p>The policy's own choice is named first in the second form, because the operator reading the denial will go and look at the policy and find a <code>warn</code> there.</p>
+
+<h2>What the ledger records</h2>
+
+<p>Migration <code>0020</code> adds two columns to the admissions table: <code>context</code>, the signal identifiers the pod carried, and <code>context_detail</code>, the exposure evidence — the Service, Ingress or hostPort. Both are written on every admission, under <code>Ignore</code> as well as <code>Escalate</code>, and for pod-level hardening denials as well as per-image rows.</p>
+
+<p>Rows written <em>before</em> the migration carry an empty array. That is not the same fact as "this pod carried no signals" — it is "nobody was looking yet" — and the what-if replay says so rather than letting the difference pass.</p>
+
+<p>The columns are deliberately not part of the ledger content hash. The hash covers what a verifier can recompute from the row, and every seal made before this migration was computed over the fourteen fields the canonical form names; adding a fifteenth would invalidate every existing checkpoint at once, for a column that is an input to a decision rather than the decision itself. The reason text — which states the signals whenever they changed an outcome — <em>is</em> hashed, and that is the part an auditor is being asked to trust. See the <a href="/evidence-trust/">evidence trust model</a>.</p>
+
+<p>In the console the signals appear as badges under the pod name in the admission feed, and a refusal that happened only because of where the pod ran is marked <strong>Deployment context</strong> in front of its reason.</p>
+
+<h2>What it needs from the cluster</h2>
+
+<p>The exposure signal is the only part of this that reads anything outside the pod under review. The chart's ClusterRole gains, read-only:</p>
+
+<pre><code>- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch"]</code></pre>
+
+<p>No chart values were added: there is nothing to configure. An installation that pins its own RBAC has to grant these two rules itself — see <a href="/what-runs/">what runs in your cluster</a> for the rest of the operator's permissions.</p>
+
+<p><strong>It degrades rather than fails.</strong> An operator that cannot list these — an upgrade where the ClusterRole was pinned, an installation with no Kubernetes client at all — derives exposure from the pod spec alone (<code>hostNetwork</code> and <code>hostPort</code>), logs a warning naming the namespace, and admits. Exposure that cannot be established is not asserted, which is the lenient direction and the correct one for a control that escalates.</p>
+
+<p>Services and Ingresses are cached per namespace for 60 seconds. A busy namespace rolling a Deployment produces dozens of reviews in a few seconds, and each of them asking the API server for every Service in the namespace would make this operator the thing slowing the cluster down. What that costs: a pod admitted in the first minute after a Service is created is judged against the namespace as it was just before. It is under-escalated for up to sixty seconds, which is the safe direction for a control that only tightens, and the next pod or the next rollout is judged correctly. If a workload's exposure has just changed and you want the decision to reflect it immediately, wait a minute before rolling the pods. A namespace whose Services could not be read is not cached at all, so the next review retries rather than reading an empty namespace for a minute.</p>
+
+<h2>Evidence and compliance</h2>
+
+<p>The evidence document carries a top-level <code>context</code> section: the mode, the signals selected, how many admitted rows carried each signal, how many refusals happened only because of where the pod ran, and the escalating policies by name with their namespaces.</p>
+
+<p><code>admitted_by_signal</code> counts admitted rows only. A pod that was refused never ran, and counting it under "admitted pods carrying this signal" would report a control's successes as its exposure. The mode is folded over <strong>every policy in force</strong> rather than read off the one policy the document's control statement quotes, so one namespace-scoped policy escalating is enough for the mode to read <code>Escalate</code> — and <code>escalating_policies</code> names them with their namespaces, so a reader can tell one namespace from the whole cluster.</p>
+
+<p>The attestation <code>context-aware-thresholds</code> reports the same thing to the frameworks:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Assessment</th><th>When</th></tr></thead>
+  <tbody>
+    <tr><td><code>met</code></td><td><code>Escalate</code>, and the gate acts on <strong>both</strong> <code>exposed</code> and <code>privileged</code>.</td></tr>
+    <tr><td><code>partial</code></td><td><code>Escalate</code>, but one of those two is not selected. A narrower control is still a control.</td></tr>
+    <tr><td><code>gap</code></td><td><code>Ignore</code>. You can switch it on today, so reporting it as unobservable would be a polite lie.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Those two signals are not an arbitrary choice. "Is the internet-facing estate held to a higher standard than the batch jobs" is the question every risk-ranking clause is actually asking, and <code>exposed</code> is the only signal that answers it; <code>privileged</code> is the one that turns a container escape into a node compromise, which is what "criticality of the asset" means when the asset is a pod. The attestation is cited by ISO/IEC 27001 A.8.8, NIST SP 800-53 RA-7 and PCI DSS 6.3.1 and 11.3.1.1, and by nothing else: RA-5, SI-2 and DORA 9(4)(f) ask for scanning, flaw correction and patch policy, and a gate that ranks by placement answers none of those three.</p>
+
+<h2>Rolling it out</h2>
+
+<ol>
+  <li>Leave <code>deploymentContext</code> absent, or set <code>mode: Ignore</code>. Every admission from then on records its context.</li>
+  <li>Watch <code>attestkeep_admission_context_total{signal}</code>, or read the signal counts in the admission feed, for as long as it takes a full deployment cycle to pass through.</li>
+  <li>Run the <a href="/policies-whatif/">what-if replay</a> with a draft that sets <code>mode: Escalate</code> and the signals you mean. <code>escalated_denials</code> is exactly what would have been refused; the samples name the pods.</li>
+  <li>Apply it.</li>
+</ol>
+
+<p>Step 3 is the point of the feature being staged this way. A control that can only tighten is still a control that can stop a deploy at 3am, and the replay is how that is found out in the afternoon instead.</p>

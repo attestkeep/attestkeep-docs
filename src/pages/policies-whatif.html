@@ -1,0 +1,77 @@
+<!--meta {
+  "title": "Try a policy before enforcing it",
+  "description": "Replay a draft policy against the admissions the cluster already recorded, see what would change, and switch enforcement on knowing the cost."
+} -->
+
+<h1>Try a policy before enforcing it</h1>
+<p class="lede">A policy is easy to read and hard to predict. Whether Enforce would refuse anything in <em>your</em> cluster depends on your images, your scan results and your triage decisions — not on the policy text.</p>
+
+<p>That is why installations sit in Audit for months: the operator cannot see what switching would cost, so they never switch. The replay answers it from the cluster's own records. Every admission review is already in the ledger; a draft policy is decided against those rows again, by the same code the admission webhook runs, and the differences are reported before anything is saved.</p>
+
+<div class="note">
+  <p><strong>Nothing is written.</strong> No pod is affected, no scan is queued, no registry is contacted, and the licence meter is not touched. The one trace it leaves is an audit-log entry (<code>policy_whatif</code>, "replayed a draft policy") and a counter, <code>attestkeep_policy_whatif_runs_total</code>.</p>
+</div>
+
+<h2>In the console</h2>
+
+<p>Policy editor → <strong>What if</strong>, beside <em>Apply to cluster</em>. Pick a period — 7, 30 or 90 days — and press it. The button is disabled while the form has errors: the draft goes through the same validation a save does, so a draft that cannot be tried is a draft that cannot be applied.</p>
+
+<p>The panel reports three figures — unchanged, would be denied, would be allowed — the gate behind each difference, and up to two hundred of the changed admissions, most recent first.</p>
+
+<h2>The request</h2>
+
+<p><code>POST /api/v1/policies/whatif</code>, session-authenticated. It needs the same authority as <strong>reading</strong> a policy, not writing one, because it writes nothing.</p>
+
+<pre><code>{
+  "policy": { "...": "the same body POST/PUT /api/v1/policies accept" },
+  "days": 30
+}</code></pre>
+
+<p><code>days</code> is 1 to 90 and defaults to 30. An invalid draft is refused with <code>400</code> and the exact message <strong>Apply</strong> would have given.</p>
+
+<h2>What the answer contains</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Field</th><th>What it is</th></tr></thead>
+  <tbody>
+    <tr><td><code>evaluated</code></td><td>Ledger rows the draft was decided against.</td></tr>
+    <tr><td><code>distinct_images</code></td><td>How many distinct digests those rows cover.</td></tr>
+    <tr><td><code>break_glass_skipped</code></td><td>Bypassed admissions, counted apart and not replayed: a bypass decided them, not a policy.</td></tr>
+    <tr><td><code>truncated</code></td><td>The row cap — 5000, newest first — was reached, so the period is only partly covered.</td></tr>
+    <tr><td><code>unchanged</code> / <code>would_deny</code> / <code>would_allow</code></td><td>The three figures the panel shows.</td></tr>
+    <tr><td><code>would_deny_by_reason</code></td><td>Keyed by the labels <code>attestkeep_admission_denials_total</code> uses — <code>threshold</code>, <code>known_exploited</code>, <code>provenance</code>, <code>registry</code>, <code>tag</code>, <code>digest</code>, <code>signature</code>, <code>attestation</code>, <code>unscanned</code>, <code>end_of_life</code>, <code>quota</code>, <code>context</code>.</td></tr>
+    <tr><td><code>would_allow_by_reason</code></td><td>Keyed by the <strong>original</strong> denial's label, recovered from the recorded reason. <code>other</code> when it cannot be recovered — the ledger stores the sentence a deployer was shown, not the label the metric carried.</td></tr>
+    <tr><td><code>samples</code></td><td>Only the changed rows, most recent first, at most 200. The reason is the draft's own sentence.</td></tr>
+    <tr><td><code>context</code></td><td>What the draft's <a href="/policies-context/"><code>deploymentContext</code></a> gate would touch: its effective mode, how many replayed <strong>rows</strong> carried each of the six signals (every signal is a key, even at zero), and <code>escalated_denials</code> — refusals that happened only because of where the pod ran. <code>rows_without_context</code> counts rows recorded before migration <code>0020</code>, which replay with no context at all; above zero it comes with a note saying so, because an empty array cannot tell "carried no signals" from "nobody was looking".</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>What it covers</h2>
+
+<ul>
+  <li>Rows in the period whose namespace the draft governs. A draft with an empty <code>targetNamespaces</code> is cluster-wide and covers every namespace.</li>
+  <li>Break-glass rows are excluded and counted in <code>break_glass_skipped</code>.</li>
+  <li>Pod-level workload-hardening denials are excluded: they are recorded with no image, and the replay decides images. Reporting them as "unchanged" would be a claim it never checked.</li>
+  <li>The newest 5000 rows.</li>
+</ul>
+
+<h2>The caveat that matters: the current scan record</h2>
+
+<p><strong>Decisions are replayed against each image's scan record as it stands now, not as it stood at the time.</strong> That is what the note on every response says, and it is the one thing that can mislead.</p>
+
+<p>The ledger records what was decided. The scan store records what is known today. An image scanned three times since that admission is judged on today's findings; a CVE published last week counts against a pod admitted last month. This is the right behaviour for the question being asked — "would this policy be safe to turn on" is about the images as they are — but it is not a reconstruction of history, and an <a href="/compliance/">evidence package</a> is still the only thing that reports what was actually decided.</p>
+
+<p>Two more things the replay does not reproduce:</p>
+
+<ul>
+  <li><strong>The licence meter.</strong> Metering is a licence fact rather than a policy one, so it is not re-run: replaying it would either double-count the period or make the answer depend on when the button was pressed. A row originally refused for the monthly image allowance therefore shows as "would be allowed", with <code>quota</code> in <code>would_allow_by_reason</code>.</li>
+  <li><strong>Audit-mode masking.</strong> A denial recorded under an Audit policy sits in the ledger as <em>allowed</em>, with <code>audit mode:</code> in front of its reason, and the replay compares it against the draft's own decision. That is deliberate, and it is the feature's whole point: a draft that differs from the running policy only in <code>enforcement</code> shows exactly the pods Enforce would have stopped.</li>
+</ul>
+
+<p>An image with no scan record at all is decided the way admission decides a cold digest — by the draft's <code>admissionTiming</code>, or by the installation's <code>webhook.coldImagePolicy</code> when the draft leaves it empty — and lands under <code>unscanned</code> when that refuses it.</p>
+
+<h2>Why the answer can be trusted</h2>
+
+<p>The replay does not have its own copy of the rules. One function is the whole per-image admission decision — break-glass, the registry allow-list, <code>:latest</code>, digest enforcement, the meter, the cold-image timing, and the severity, known-exploited, provenance and VEX evaluation — and both the admission webhook and this endpoint call it. The preview and the gate cannot drift, because there is only one of them.</p>

@@ -72,12 +72,20 @@
       <li><a href="/using-the-console/">Using the console</a></li>
       <li><a href="/configuration/">Configuration</a></li>
       <li><a href="/policies/" aria-current="page">Policies</a></li>
+      <li><a href="/policies-vex/">Producer statements (VEX)</a></li>
+      <li><a href="/policies-context/">Deployment context</a></li>
+      <li><a href="/policies-whatif/">Try a policy first</a></li>
       <li><a href="/admission/">Admission</a></li>
       <li><a href="/air-gapped/">Air-gapped clusters</a></li>
       <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
       <li><a href="/operations/">Operations and alerting</a></li>
       <li><a href="/upgrade/">Upgrade</a></li>
       <li><a href="/backup/">Backup and restore</a></li>
+    </ul>
+    <h2>Integrations</h2>
+    <ul>
+      <li><a href="/runtime-events/">Runtime events (Falco)</a></li>
+      <li><a href="/issue-trackers/">Issue trackers</a></li>
     </ul>
     <h2>Evidence and help</h2>
     <ul>
@@ -334,6 +342,77 @@ truncated workload list says so. During break-glass, <code>enforce</code> quietl
 down to <code>notify</code> — a pod stopped mid-incident would be readmitted through the
 bypass, which would launder it into an allowed event instead of judging it.</p>
 
+<h2>Base OS support and known-exploited CVEs</h2>
+
+<p>Two gates that decide on something other than a severity count. Both take <code>ignore</code>, <code>warn</code> or <code>block</code>, and both default to <code>warn</code>, so a policy written before they existed keeps admitting exactly what it admitted before and starts reporting why it should not.</p>
+
+<pre><code>apiVersion: attestkeep.com/v1alpha1
+kind: ImageSecurityPolicy
+metadata:
+  name: default
+spec:
+  # The image's base OS is past its vendor's support window: no security fixes
+  # will ever be published for that release, so its findings can only grow.
+  # warn (default) admits and says so; block refuses whatever the counts are;
+  # ignore says nothing.
+  endOfLifeOS: warn
+
+  # The image carries a CVE on CISA's Known Exploited Vulnerabilities
+  # catalogue — not a prediction of what an attacker could do, a record of
+  # what attackers have done. warn (default) admits and names the CVEs;
+  # block refuses; ignore says nothing.
+  knownExploited: warn</code></pre>
+
+<p>The base OS and its support state are shown on each image's detail panel. The KEV catalogue is kept as a local copy, refreshed every six hours, and every finding whose CVE appears on it is marked; the vulnerability and image pages carry a KEV badge with the catalogue's dates and can be filtered down to it, the dashboard shows which catalogue version is in force, and evidence packages record that version alongside the vulnerability database version. Triaged CVEs are excluded from this gate, the same way they are excluded from the severity thresholds, and a refusal names the CVEs rather than a count, so a refused deployment says what to fix.</p>
+
+<p>A cluster with no route to the internet points <code>kev.source</code> at a mirrored copy of the catalogue, or sets it empty to keep the copy it already has — see <a href="/configuration/">Configuration</a> and <a href="/air-gapped/">air-gapped clusters</a>.</p>
+
+<h2>Build provenance</h2>
+
+<p>Not "somebody signed these bytes" but "this build system produced them from this source", which is the question a compromised release pipeline actually turns on.</p>
+
+<pre><code>apiVersion: attestkeep.com/v1alpha1
+kind: ImageSecurityPolicy
+metadata:
+  name: prod-hard-gate
+spec:
+  provenance:
+    # 0 (the default, and what an absent block means) switches the gate off.
+    # Above zero the image must carry a verified SLSA provenance attestation
+    # naming a builder listed below, credited with at least this level.
+    minLevel: 2
+    trustedBuilders:
+        # The id is what the statement claims. A trailing "*" matches by
+        # prefix; every other id matches exactly. An empty list with
+        # minLevel above zero admits nothing.
+      - id: https://github.com/acme/build/.github/workflows/release.yml@*
+        # What this operator asserts about that builder, not something read
+        # from the predicate: SLSA records no level inside a provenance
+        # statement, because a level describes how the builder is run and
+        # isolated and no statement can vouch for that about itself.
+        level: 3
+        # Who made the claim, read from the signing certificate. Unset, it
+        # must equal the builder id — the shape a reusable workflow produces.
+        signer: https://github.com/acme/build/.github/workflows/release.yml@*
+        # Unset accepts any issuer. Worth naming on a cluster that only ever
+        # builds in one place.
+        issuer: https://token.actions.githubusercontent.com</code></pre>
+
+<p>An image whose verified SLSA provenance — v1 or v0.2 — does not name a trusted builder, or whose signing certificate identity or issuer is not the one the entry accepts, or whose builder is credited below <code>minLevel</code>, is refused, and the reason names the builder, the signer or the level. Both identities are read from the certificate the registry stores beside the attestation, which the scanner fetches itself: an image whose certificate cannot be reached or parsed is refused rather than admitted on the predicate's word alone.</p>
+
+<p>This is the only check that binds to <em>who</em>. <code>requireSBOM</code> and <code>requireVulnAttestation</code> verify that somebody signed the attestation; the provenance gate verifies which identity did. The predicate, builder, signer and issuer appear on the scan row and on the console's image detail, and evidence packages carry <code>provenance-verified</code> facts.</p>
+
+<h2>Producer statements, and where the pod runs</h2>
+
+<p>Two blocks large enough to have their own pages:</p>
+
+<ul>
+  <li><a href="/policies-vex/"><code>vex</code></a> — a signed OpenVEX statement from a producer the policy trusts can take a finding out of the counts admission decides on. <code>mode</code> is <code>ignore</code> by default, which verifies, records and shows every trusted statement while moving no verdict.</li>
+  <li><a href="/policies-context/"><code>deploymentContext</code></a> — judge an image more strictly according to where the pod is going to run: exposed, privileged, root, host namespaces, host filesystem, added capabilities. <code>mode</code> is <code>Ignore</code> by default, which records the signals on every ledger row and changes no decision. Escalation can only tighten a policy, never loosen it.</li>
+</ul>
+
+<p>Both are worth running in their default mode first, and the <a href="/policies-whatif/">what-if replay</a> is how you find out what switching would cost before you switch it.</p>
+
 <h2>Field reference</h2>
 
 <div class="table-wrap">
@@ -353,6 +432,11 @@ bypass, which would launder it into an allowed event instead of judging it.</p>
     <tr><td><code>requireVulnAttestation</code></td><td>bool</td><td>Refuse images without a vulnerability-scan attestation.</td></tr>
     <tr><td><code>attestationMaxAge</code></td><td>duration</td><td>An attestation older than this no longer counts.</td></tr>
     <tr><td><code>workloadHardening</code></td><td><code>mode</code>, <code>minSeverity</code>, <code>exempt</code></td><td>Whether privileged containers, hostPath mounts and similar refuse (<code>enforce</code>), warn, or pass; <code>exempt</code> names workloads allowed anyway.</td></tr>
+    <tr><td><code>endOfLifeOS</code></td><td><code>ignore</code> | <code>warn</code> | <code>block</code></td><td>What happens to an image whose base OS is past its vendor's support window. Default <code>warn</code>.</td></tr>
+    <tr><td><code>knownExploited</code></td><td><code>ignore</code> | <code>warn</code> | <code>block</code></td><td>What happens to an image carrying a CVE on CISA's Known Exploited Vulnerabilities catalogue. Default <code>warn</code>.</td></tr>
+    <tr><td><code>provenance</code></td><td><code>minLevel</code> 0&ndash;3, <code>trustedBuilders</code></td><td>Refuse an image whose verified SLSA provenance does not name a trusted builder, is not signed by the identity that entry accepts, or is credited below <code>minLevel</code>. Default <code>minLevel: 0</code>, the gate off.</td></tr>
+    <tr><td><code>vex</code></td><td><code>mode</code> <code>ignore</code> | <code>apply</code>, <code>trustedIssuers</code></td><td>Whether a trusted producer's signed <code>not_affected</code> or <code>fixed</code> statement takes a finding out of the counts. Default <code>ignore</code> — recorded and shown, nothing suppressed. See <a href="/policies-vex/">producer statements</a>.</td></tr>
+    <tr><td><code>deploymentContext</code></td><td><code>mode</code> <code>Ignore</code> | <code>Escalate</code>, <code>signals</code></td><td>Judge a pod carrying a selected signal more strictly. Default <code>Ignore</code> — signals recorded, no decision changed; an empty <code>signals</code> list under <code>Escalate</code> means all six. See <a href="/policies-context/">deployment context</a>.</td></tr>
     <tr><td><code>runtimeReconciliation</code></td><td><code>audit</code> | <code>notify</code> | <code>enforce</code></td><td>What the periodic sweep does about a running image with no admission event behind it: record it, announce it, or stop the pod so it re-enters through the webhook.</td></tr>
     <tr><td><code>breakGlass</code></td><td>—</td><td>A named, approved, expiring exception; every use is recorded.</td></tr>
     <tr><td><code>triageDefaults</code></td><td><code>maxDuration</code>, <code>requireJustification</code></td><td>How long an accepted risk may stand, and whether it must say why.</td></tr>

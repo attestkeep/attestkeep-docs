@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Issue trackers — Attestkeep docs</title>
+<meta name="description" content="GitHub, GitLab and Jira channels: how an issue is opened for a critical finding, how it is closed and why, the minimum permission per provider, and where the credential lives.">
+<link rel="canonical" href="https://docs.attestkeep.com/issue-trackers/">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#071f20">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Issue trackers — Attestkeep docs">
+<meta property="og:description" content="GitHub, GitLab and Jira channels: how an issue is opened for a critical finding, how it is closed and why, the minimum permission per provider, and where the credential lives.">
+<meta property="og:url" content="https://docs.attestkeep.com/issue-trackers/">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "Issue trackers",
+      "description": "GitHub, GitLab and Jira channels: how an issue is opened for a critical finding, how it is closed and why, the minimum permission per provider, and where the credential lives.",
+      "url": "https://docs.attestkeep.com/issue-trackers/",
+      "inLanguage": "en",
+      "isPartOf": { "@type": "WebSite", "name": "Attestkeep docs", "url": "https://docs.attestkeep.com/" },
+      "publisher": { "@type": "Organization", "name": "Attestkeep", "url": "https://attestkeep.com/" }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Docs", "item": "https://docs.attestkeep.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Issue trackers", "item": "https://docs.attestkeep.com/issue-trackers/" }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/img/mark-white.svg" alt="" width="26" height="26">
+    <span class="wordmark">Attest<b>keep</b></span>
+    <span class="brand__tag">docs</span>
+  </a>
+  <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  <nav class="top__links">
+    <a href="https://github.com/attestkeep/attestkeep-docs/issues">GitHub issues</a>
+    <a href="https://attestkeep.com/pricing.html">Pricing</a>
+    <a href="https://attestkeep.com/app/signin">Sign in</a>
+  </nav>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+        <h2>Start here</h2>
+    <ul>
+      <li><a href="/">Overview</a></li>
+      <li><a href="/install/">Install</a></li>
+      <li><a href="/what-runs/">What runs in your cluster</a></li>
+      <li><a href="/scope/">What Attestkeep does not do</a></li>
+      <li><a href="/licensing/">Licensing</a></li>
+    </ul>
+    <h2>Running it</h2>
+    <ul>
+      <li><a href="/using-the-console/">Using the console</a></li>
+      <li><a href="/configuration/">Configuration</a></li>
+      <li><a href="/policies/">Policies</a></li>
+      <li><a href="/policies-vex/">Producer statements (VEX)</a></li>
+      <li><a href="/policies-context/">Deployment context</a></li>
+      <li><a href="/policies-whatif/">Try a policy first</a></li>
+      <li><a href="/admission/">Admission</a></li>
+      <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
+      <li><a href="/operations/">Operations and alerting</a></li>
+      <li><a href="/upgrade/">Upgrade</a></li>
+      <li><a href="/backup/">Backup and restore</a></li>
+    </ul>
+    <h2>Integrations</h2>
+    <ul>
+      <li><a href="/runtime-events/">Runtime events (Falco)</a></li>
+      <li><a href="/issue-trackers/" aria-current="page">Issue trackers</a></li>
+    </ul>
+    <h2>Evidence and help</h2>
+    <ul>
+      <li><a href="/evidence-trust/">Evidence trust model</a></li>
+      <li><a href="/compliance/">Compliance frameworks</a></li>
+      <li><a href="/verifying-reports/">Verifying a report</a></li>
+      <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      <li><a href="/support/">Support and security</a></li>
+      <li><a href="/releases/">Releases</a></li>
+    </ul>
+  </nav>
+
+  <main class="content" id="content">
+    <h1>Issue trackers</h1>
+<p class="lede">When a critical vulnerability appears in an image your cluster is running, Attestkeep opens an issue in your own tracker. When the finding stops being true, it closes that issue and records why.</p>
+
+<p>The issues themselves are the visible half. The half that matters is the history behind them. Until this existed, Attestkeep could declare a remediation window and count critical findings, and had no record of when a finding stopped being one — so the <code>remediation-windows</code> attestation in your evidence pack was permanently <strong>partial</strong>: it could report the windows and the findings, never whether a fix landed inside one. With a tracker connected, that attestation can say <em>N of M critical findings raised in this period were fixed, and K of those inside the declared window</em>.</p>
+
+<div class="note">
+  <p><strong>Read this before you configure one.</strong> This is the first place in Attestkeep where a credential that can <em>write</em> to a system outside your cluster lives inside your cluster. Everything else this product holds is read-only or internal. The minimum permission for each provider is below; grant that and nothing more.</p>
+</div>
+
+<h2>How it is configured</h2>
+
+<p>An issue tracker is a <strong>notification channel</strong>, not a separate subsystem. It lives in the same table, the same editor and the same subscription rules as a Slack or Teams destination, and it subscribes to the same <code>critical_finding</code> event. Settings → Notifications → Add Channel → GitHub Issues / GitLab Issues / Jira.</p>
+
+<p>Subscribing a tracker channel to other events is allowed and does nothing: <code>critical_finding</code> is the only event that produces an issue.</p>
+
+<p><strong>Test</strong> on a tracker channel writes nothing at all. It issues a single read — a <code>GET</code> of the repository, project or Jira project — and reports whether the credential works. A "send a test message" button would file a junk ticket in your board every time somebody pressed it, so the console says instead: <em>Connection to … verified … Nothing was written.</em></p>
+
+<h2>One issue per image digest and CVE, forever</h2>
+
+<p>The deduplication key is the <strong>image digest plus the CVE</strong>, with no time window. A digest is immutable: the same <code>sha256:</code> is byte for byte the same image, so the same CVE in the same bytes is one problem however many times it is met. A second scan, a second namespace, a second cluster and a second week all find the row that already exists and add themselves to it rather than opening a second issue.</p>
+
+<p>Cluster names are recorded <em>on</em> the row and are deliberately not part of the key. Three clusters running the same digest do not want three issues about one CVE; they want one issue that says which three. Set <code>clusterName</code> on each installation and the issue body names them.</p>
+
+<p>A different digest carrying the same CVE <strong>is</strong> a separate issue: it is a separate set of bytes to fix.</p>
+
+<p>The history row is the lock, and it is claimed <em>before</em> the tracker is called. That is what stops two operator replicas both deciding to open the same issue. The cost is that a provider failure can leave a row holding the lock with no issue behind it; such a row is retried on the next critical finding for that image rather than released, because the alternative is a duplicate that nothing afterwards can merge.</p>
+
+<h2>The first run files one summary</h2>
+
+<p>A first scan of an existing cluster reports a <em>backlog</em>, not an event, and it can easily be two hundred critical findings. An integration that files two hundred tickets on its first afternoon is switched off on its second.</p>
+
+<p>So a channel's very first run, if it has more than five candidates, files a single summary issue listing all of them. Every finding still gets its own history row — the dedup lock and the evidence count are per CVE — and they all point at that one issue. From the second run onwards the behaviour is one issue per finding. Turn it off with <strong>Summarise the first run</strong> if you would rather have the individual tickets.</p>
+
+<h2>The daily cap</h2>
+
+<p>Each channel may open at most <code>dailyCap</code> issues — 20 by default, allowed range 1 to 500 — in a rolling 24 hours. Findings beyond the cap are not lost and not marked as handled: they are candidates again as soon as the window rolls. A warning is logged once per day per channel when the cap is reached, not once per finding. The cap counts <strong>issues</strong>, so a first-run summary of a hundred findings costs one.</p>
+
+<p>A cap of zero is refused. It used to be accepted, and produced a channel that saved cleanly, tested green and opened nothing for the rest of its life. A channel that should file nothing is <strong>disabled</strong>, not capped at zero.</p>
+
+<p><strong>A disabled channel still closes the issues it opened.</strong> Disabling stops the filing; the closing sweep goes on using the stored credential, so an issue already in your tracker is still commented on and closed when its finding is fixed, triaged or retired. That is deliberate — an open ticket about a finding that no longer exists is worse than a closed one, and nobody disables a channel in order to be left with a board full of them.</p>
+
+<p><strong>Deleting</strong> the channel stops that too, and there is no other mechanism behind it: the history rows keep the deleted channel's id, the sweep can no longer resolve it and says so once per sweep in the log, the rows stay open forever and their issues have to be closed by hand. Deleting also leaves those findings locked — an open row is the deduplication key, so a new channel will not re-file them.</p>
+
+<h2>Where the issue goes</h2>
+
+<p>If the image's OCI config carries <code>org.opencontainers.image.source</code> and it points at a repository on this channel's own host, the issue is opened there. Otherwise it goes to the channel's default repository or project.</p>
+
+<pre><code>LABEL org.opencontainers.image.source="https://github.com/acme/api"</code></pre>
+
+<p>The host comparison strips a leading <code>api.</code> from the configured API host, which is the only difference between <code>api.github.com</code>, where Attestkeep talks, and <code>github.com</code>, where your image says it lives. A GitHub Enterprise Server or a self-managed GitLab uses one host for both, so the strip is a no-op there. GitHub takes the first two path segments (<code>owner/name</code>); GitLab takes the whole path, because GitLab groups nest.</p>
+
+<p><strong>Jira always uses its project key.</strong> A repository is not a Jira project, and the mapping between the two is yours, not something this product can infer.</p>
+
+<h2>Closing, and the three reasons</h2>
+
+<p>A background job re-checks every open issue <strong>every ten minutes</strong>, on the single replica holding the controller lock. It closes an issue by posting a comment saying why and then closing it in the tracker; only after the tracker has confirmed is the history row marked closed. A provider failure leaves the row open with the error recorded and the next sweep tries again — a closure in your evidence pack always corresponds to a closure an auditor can go and look at.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Reason</th><th>What it means</th><th>Counts as remediation?</th></tr></thead>
+  <tbody>
+    <tr><td><code>fixed</code></td><td>The newest scan of that digest no longer reports the CVE.</td><td><strong>Yes</strong></td></tr>
+    <tr><td><code>triaged</code></td><td>An unexpired triage decision in Attestkeep covers that CVE for that image.</td><td>No</td></tr>
+    <tr><td><code>image_retired</code></td><td>No pod has been observed running that digest for 24 hours.</td><td>No</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p><strong>Only <code>fixed</code> is remediation, and the three never merge.</strong> A deleted deployment counted as a fix would turn <em>we stopped shipping it</em> into <em>we patched it</em> in an audit document. The evidence pack reports the three separately for exactly this reason, and the closing comment on the ticket says which one it was in the same words.</p>
+
+<p>Two details worth knowing. <code>fixed</code> is read from the findings rows, not from a severity count: a count that dropped because a producer's <a href="/policies-vex/">VEX statement</a> was accepted is not a fix. And <code>image_retired</code> is withheld entirely unless a <a href="/policies/">runtime reconciliation sweep</a> has run within the last 24 hours — "nothing runs this digest" is only a fact if something was looking, and closing on a silence would put a closure in the evidence pack that nothing observed.</p>
+
+<p>The unit of work is the <strong>issue</strong>, not the finding. Those are the same thing for an ordinary finding and are not for a first-run summary, which is one issue carrying a history row per CVE. So each finding is still judged on its own with its own reason; one comment per issue per sweep lists the findings that ended and the reason each ended for; and the issue is closed once, when the last finding on it ends. Until then it stays open and the comment says how many are still outstanding — closing an issue that still lists live critical findings would tell the team the work is done.</p>
+
+<p>A finding that was closed as <code>triaged</code> and comes back when the triage expires opens a <strong>new</strong> issue. That is a new decision, and the closed row stays as the history of the first.</p>
+
+<h2>Configuration and the minimum permission</h2>
+
+<h3>GitHub</h3>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>apiBaseUrl</code></td><td><code>https://api.github.com</code>, or <code>https://ghe.example.com/api/v3</code> for GitHub Enterprise Server.</td></tr>
+    <tr><td><code>token</code></td><td>See below. Write-only: never read back through the API.</td></tr>
+    <tr><td><code>defaultRepo</code></td><td><code>owner/name</code>.</td></tr>
+    <tr><td><code>labels</code></td><td>Applied to every issue this channel opens.</td></tr>
+    <tr><td><code>dailyCap</code></td><td>Default 20.</td></tr>
+    <tr><td><code>firstRunSummary</code></td><td>Default on.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p><strong>Minimum permission: a fine-grained personal access token with <code>Issues: Read and write</code> on the target repositories, and nothing else.</strong> Select the repositories explicitly rather than granting the token all of them. No <code>contents</code>, no <code>actions</code>, no <code>metadata</code> beyond what selecting a repository implies. A classic PAT with the <code>repo</code> scope also works and grants far more than this integration needs; prefer the fine-grained token.</p>
+
+<h3>GitLab</h3>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>apiBaseUrl</code></td><td><code>https://gitlab.com/api/v4</code>, or your instance's <code>/api/v4</code>.</td></tr>
+    <tr><td><code>token</code></td><td>See below. Write-only.</td></tr>
+    <tr><td><code>defaultProject</code></td><td>Full path (<code>acme/platform/api</code>) or numeric project id.</td></tr>
+    <tr><td><code>labels</code>, <code>dailyCap</code>, <code>firstRunSummary</code></td><td>As above.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p><strong>Minimum permission: a project access token with the <code>api</code> scope on the target project</strong>, or a group access token when several projects are targeted. GitLab has no issues-only scope — <code>api</code> is the narrowest thing that can create an issue, and it is broader than we would like. Scope it to the single project where you want the issues to land, and use the <strong>Reporter</strong> role, which is enough to create and close issues.</p>
+
+<h3>Jira</h3>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>apiBaseUrl</code></td><td><code>https://your-site.atlassian.net</code> (Cloud), <code>https://api.atlassian.com/ex/jira/&lt;cloudId&gt;</code> (Cloud, scoped token) or your Data Center base URL.</td></tr>
+    <tr><td><code>email</code> + <code>apiToken</code></td><td>Jira <strong>Cloud</strong>. Basic auth.</td></tr>
+    <tr><td><code>bearerToken</code></td><td>Jira <strong>Data Center</strong>. A personal access token, used instead of the pair above.</td></tr>
+    <tr><td><code>projectKey</code></td><td>Every issue from this channel is filed here.</td></tr>
+    <tr><td><code>issueType</code></td><td>Default <code>Task</code>.</td></tr>
+    <tr><td><code>doneTransitionId</code></td><td>Optional. See below.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Configure <strong>one</strong> authentication mechanism, not both. Which one you configure also selects the REST API version: Cloud is <code>/rest/api/3</code> with Atlassian Document Format bodies, Data Center is <code>/rest/api/2</code> with plain text.</p>
+
+<p><strong>Which Cloud base URL: the site, or the gateway.</strong> Atlassian now issues two kinds of API token and they look the same — both start with <code>ATATT3</code>, and nothing on the page you copy one from says which you have. A <em>classic</em> token works against your site, <code>https://your-site.atlassian.net</code>. A <em>scoped</em> token does not: the site answers <code>401 AUTHENTICATED_FAILED</code> no matter how correct the e-mail and token are, and the same pair works only through the API gateway, <code>https://api.atlassian.com/ex/jira/&lt;cloudId&gt;</code>. So a 401 from the Test button with an e-mail and token you are sure of means you hold a scoped token and are pointing at the site. Switch the base URL to the gateway form. Your cloudId is public and takes one request:</p>
+
+<pre><code>curl -s https://your-site.atlassian.net/_edge/tenant_info
+{"cloudId":"5c9f0b7e-...."}</code></pre>
+
+<p>Issue links stay usable under the gateway: <code>/browse</code> is not a page there, so Attestkeep asks Jira once per run where the site is (<code>GET /rest/api/3/serverInfo</code>) and links to that instead.</p>
+
+<p><strong>Minimum permission: an API token for an account with <code>Create issues</code> and <code>Add comments</code> on the target project</strong>, plus <code>Transition issues</code> if you set a done transition. Nothing else — this integration never reads other people's issues and never touches a board.</p>
+
+<p><strong><code>doneTransitionId</code> is never guessed.</strong> Jira workflows belong to the project, and a transition called "Done" in one is "Resolve Issue" in the next; an integration that guessed would eventually move a security ticket into a state your process does not expect. Without it, closing posts the comment and leaves the issue open — and the comment says so, so nobody is left thinking the tracker and the console disagree. Find yours with:</p>
+
+<pre><code>curl -u "$EMAIL:$API_TOKEN" \
+  "https://your-site.atlassian.net/rest/api/3/issue/SEC-1/transitions"</code></pre>
+
+<h2>The credential, and where it lives</h2>
+
+<ul>
+  <li>It is stored <strong>encrypted</strong> in the operator's own PostgreSQL. See below.</li>
+  <li><strong>It is never read back through the API.</strong> A read returns the configuration with the secret fields removed and a <code>tokenSet: true</code> flag in their place, so the console can say "a credential is stored" without holding one. An update that leaves the field empty keeps the stored value; an update that fills it in replaces it.</li>
+  <li>Every outbound call goes through the same guard the notification webhooks use: a base URL that resolves to loopback or a link-local address, where every cloud metadata endpoint lives, is refused at save time and again at dial time.</li>
+  <li>Rotate by editing the channel and typing the new token. Revoke by deleting the channel; the history rows survive it, because an auditor asking about a closed finding must not be told the record vanished when somebody rotated a credential.</li>
+</ul>
+
+<h3>Credentials at rest</h3>
+
+<p>A tracker token can open and close issues in your own GitHub, GitLab or Jira, and it lives in the product database. A database copy — a backup, a read-only reporting user, a dump handed to support — would otherwise carry a working write credential for your forge. So it is encrypted before it is written.</p>
+
+<p><strong>What is encrypted.</strong> Exactly the tracker credentials: <code>token</code> for GitHub and GitLab, <code>apiToken</code> and <code>bearerToken</code> for the two Jira flavours. They are sealed with AES-256-GCM and stored as <code>enc:v1:&lt;base64&gt;</code>, bound to the channel and the field they belong to, so a value lifted out of one channel's row and pasted into another's does not open. Nothing else changes: the SMTP password, the single sign-on client secret and the Slack and Teams webhook URLs are stored as they always were.</p>
+
+<p><strong>Where the key lives.</strong> In a Kubernetes Secret, delivered to the operator as the environment variable <code>DATA_KEY</code>. The Helm chart generates <code>&lt;release&gt;-data-key</code> on first install and preserves it across upgrades; point <a href="/configuration/"><code>api.dataKey.existingSecret</code></a> at your own Secret to supply it from a secret manager instead. It is never written to the product database — a key stored beside the data it protects is not a key — and there is no fallback that would put it there. It belongs in your <a href="/backup/">backup set</a>.</p>
+
+<p><strong>Without the key.</strong> Saving or updating an issue-tracker channel is refused with "tracker credentials cannot be stored: DATA_KEY is not set", and the operator logs say so once at startup. A credential already stored that cannot be opened — a replaced key — makes the Test button report that the stored token cannot be read, and findings are skipped with that reason rather than the ciphertext being sent to your tracker as a bearer token. Nothing else about the product depends on the key.</p>
+
+<p><strong>On upgrade.</strong> Channels configured before this version hold their token in plain text. One pass at startup, on the leader, seals them in place and logs how many it changed; running it again finds nothing to do. There is nothing to run by hand.</p>
+
+<p><strong>Export.</strong> The <a href="/backup/">configuration bundle</a> carries neither the token nor its ciphertext — the sealed value is bound to this installation's key and would not open in the one the bundle is for, and in a file it would only be a liability. An imported tracker channel arrives disabled, waiting for its token to be entered.</p>
+
+<p><strong>Rotation is not offered in this version.</strong> Replacing <code>DATA_KEY</code> leaves the credentials already stored unreadable; each tracker channel then needs its token entered again, which also re-seals it under the new key.</p>
+
+<h2>What this adds to the evidence pack</h2>
+
+<p>A new <code>issues</code> section: how many critical findings were opened in the period, how many are still open, how many closed and under which of the three reasons, how many of the fixes landed inside the declared critical window, and a row per tracked finding — CVE, image, issue URL, opened, closed, reason, hours open — so a figure can be sampled rather than taken on faith.</p>
+
+<p>And <code>remediation-windows</code> changes state:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>State</th><th>When</th></tr></thead>
+  <tbody>
+    <tr><td><strong>gap</strong></td><td>No remediation window is declared at all.</td></tr>
+    <tr><td><strong>partial</strong></td><td>No tracker is connected — unchanged wording, so previously issued packages still read the same way.</td></tr>
+    <tr><td><strong>partial</strong></td><td>A tracker is connected and nothing was raised, or nothing raised has been fixed yet.</td></tr>
+    <tr><td><strong>gap</strong></td><td>Findings were fixed and none of the fixes landed inside the declared window.</td></tr>
+    <tr><td><strong>partial</strong></td><td>Some fixes landed inside the window and some were late.</td></tr>
+    <tr><td><strong>met</strong></td><td>Every critical finding raised in the period that has been fixed was fixed inside the declared window, and at least one was.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>No framework clause changed. The clauses already cite this attestation; what changed is that it now has something to measure.</p>
+
+<p>Channel actions — create, update, delete and test — are recorded in the audit log as user activity, with the actor, the action, the channel and the path. They are not part of evidence packages: they are what an operator did to the installation, not what the control decided about an image.</p>
+
+<h2>Metrics</h2>
+
+<pre><code>attestkeep_issues_opened_total{provider}
+attestkeep_issues_closed_total{provider,reason}
+attestkeep_issues_skipped_total{reason="dedup|cap|error"}</code></pre>
+
+<p>The first two count <strong>issues</strong>, one per write to your tracker: a first-run summary of a hundred findings increments <code>opened</code> by one, not a hundred. When an issue carrying several findings is closed, <code>closed</code> is incremented once with <code>reason</code> set to the majority of its findings' reasons, ties breaking towards <code>fixed</code> — a counter takes one label, and a tie must never make an issue look less remediated than it was. The per-finding truth is not in these metrics and is not meant to be: every history row keeps its own reason, and the evidence pack reports the three from the rows.</p>
+
+<p><code>skipped</code> counts <strong>findings</strong>, because a candidate is a finding: six findings that never reached the tracker is six findings untracked, whether or not they were going to share an issue. <code>skipped{reason="dedup"}</code> is the commonest series on a healthy cluster and is not a problem — it is the deduplication rule doing its job on every rescan. <code>skipped{reason="error"}</code> rising means the tracker is refusing; check the channel's stored error, which is also on the history row.</p>
+    <footer class="content__foot">
+      <p>Attestkeep — container image security for Kubernetes.</p>
+      <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>
+    </footer>
+  </main>
+</div>
+
+<script src="/assets/docs.js" defer></script>
+</body>
+</html>

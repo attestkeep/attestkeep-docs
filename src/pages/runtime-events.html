@@ -1,0 +1,108 @@
+<!--meta {
+  "title": "Runtime events from Falco",
+  "description": "Send your own Falco's alerts to Attestkeep so they are filed against the image that produced them, shown beside its scan and reported in the evidence pack."
+} -->
+
+<h1>Runtime events from Falco</h1>
+<p class="lede">Attestkeep decides what may run. Falco watches what a container does once it is running. This integration is the join between them: your Falco's alerts arrive here, are filed against the image that produced them, and appear beside that image's scan.</p>
+
+<div class="note">
+  <p><strong>Attestkeep does not ship, install or run Falco.</strong> The detection is yours; this is a place to put what it found. Nothing that arrives on this endpoint changes an admission decision — an alert cannot deny a pod, and a broken alert stream cannot break your cluster. Runtime behaviour detection stays outside what this product does, for the reasons on <a href="/scope/">what Attestkeep does not do</a>.</p>
+</div>
+
+<h2>What you need</h2>
+
+<ul>
+  <li>Falco with <strong>Falcosidekick</strong> in front of it. Falcosidekick's generic <code>webhook</code> output is what this endpoint speaks; it forwards Falco's alert JSON unchanged. The Falco Helm chart installs it with <code>falcosidekick.enabled=true</code>.</li>
+  <li>Network reach from Falcosidekick to the operator's API service. Both usually live in the same cluster, so this is a ClusterIP address and no ingress.</li>
+</ul>
+
+<h2>1. Create the token</h2>
+
+<p>The endpoint has no session behind it — Falcosidekick has no account here — so a shared bearer token is the whole of its authentication. Generate one and keep it in a Secret; a token in <code>values.yaml</code> is a token in your Helm release history.</p>
+
+<pre><code>kubectl -n attestkeep create secret generic attestkeep-falco \
+  --from-literal=token="$(openssl rand -hex 32)"</code></pre>
+
+<h2>2. Turn the endpoint on</h2>
+
+<pre><code>integrations:
+  falco:
+    existingSecret:
+      name: attestkeep-falco
+      key: token
+    minPriority: warning</code></pre>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  -n attestkeep -f values.yaml</code></pre>
+
+<p>Until this is set the operator has no such endpoint: <code>/api/v1/integrations/falco</code> answers <code>404</code>, which is also what it answers to anything probing for it.</p>
+
+<h2>3. Point Falcosidekick at it</h2>
+
+<p>The address is the operator's API service — <code>&lt;release&gt;.&lt;namespace&gt;.svc</code> on <code>api.port</code>, which is <code>8080</code> unless you changed it. For a release named <code>attestkeep</code> in namespace <code>attestkeep</code>:</p>
+
+<pre><code><span class="s"># values for the falcosecurity/falco chart</span>
+falcosidekick:
+  enabled: true
+  config:
+    webhook:
+      address: "http://attestkeep.attestkeep.svc:8080/api/v1/integrations/falco"
+      customHeaders: "Authorization:Bearer &lt;the token you generated&gt;"
+      minimumpriority: warning</code></pre>
+
+<p>The same three settings as environment variables, if you configure Falcosidekick directly rather than through the chart:</p>
+
+<pre><code>WEBHOOK_ADDRESS=http://attestkeep.attestkeep.svc:8080/api/v1/integrations/falco
+WEBHOOK_CUSTOMHEADERS=Authorization:Bearer &lt;the token you generated&gt;
+WEBHOOK_MINIMUMPRIORITY=warning</code></pre>
+
+<p>Put the token in Falcosidekick's own Secret rather than inline, the same way you did on this side.</p>
+
+<p><strong>Set the floor on both ends.</strong> <code>WEBHOOK_MINIMUMPRIORITY</code> stops the event being sent; <code>integrations.falco.minPriority</code> stops it being stored. Dropping it here still costs the delivery, so the sender's floor is the one that saves work and this one is the backstop.</p>
+
+<h2>Priorities</h2>
+
+<p>Falco's own ordering, most severe first, and the names are matched case-insensitively:</p>
+
+<pre><code>emergency  alert  critical  error  warning  notice  informational  debug</code></pre>
+
+<p><code>warning</code> is the default floor. Notice and below is most of a cluster's alert volume and very little of its signal, and this table is read by an evidence document. A priority neither side recognises is <strong>kept</strong>, not dropped: a level a newer Falco introduced must not be silently discarded by an older operator.</p>
+
+<h2>Response codes</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>202</code></td><td>Stored.</td></tr>
+    <tr><td><code>204</code></td><td>Accepted and not stored: below <code>minPriority</code>, or already on record.</td></tr>
+    <tr><td><code>400</code></td><td>Not a Falco event, or missing <code>rule</code>, <code>priority</code> or <code>time</code>.</td></tr>
+    <tr><td><code>401</code></td><td>The <code>Authorization</code> header does not carry the configured token.</td></tr>
+    <tr><td><code>404</code></td><td>No token configured — the integration is off.</td></tr>
+    <tr><td><code>413</code></td><td>The body is larger than 64 KiB.</td></tr>
+    <tr><td><code>500</code></td><td>The event could not be written. Falcosidekick logs the failed delivery.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Falcosidekick treats any non-2xx as a delivery error and logs it, which is why a dropped event answers <code>204</code> rather than a 4xx: it is not the sender's mistake.</p>
+
+<p>Redelivery is safe. Falcosidekick puts a fresh <code>uuid</code> on every delivery, so that field cannot carry idempotence; the operator keys on the detector source, the rule, the event's own timestamp, the container id and the pod. The same detection delivered twice is one row and a <code>204</code>.</p>
+
+<h2>What you get</h2>
+
+<p><strong>In the console.</strong> The images list grows a <strong>Runtime</strong> column with each image's alert count for the last seven days — only once the operator has actually been sent an event, so an installation that does not use this sees no new column. The image detail panel lists the last 20 alerts for that image: time, priority, rule, namespace and pod, and Falco's own output line.</p>
+
+<p><strong>In the evidence pack.</strong> A <code>runtime</code> section reporting the source, the period's events by priority, and the loudest rule-and-image pairs; and a <code>runtime-observed</code> attestation. That attestation is <strong>met</strong> only when the feed is configured <em>and</em> delivered something inside the period — a configured feed that stayed silent for a whole period reports <strong>partial</strong>, because from inside the operator a detector with nothing to say and a detector that stopped are the same silence.</p>
+
+<p><strong>In the metrics.</strong></p>
+
+<pre><code>attestkeep_runtime_events_total{source, priority}
+attestkeep_runtime_events_dropped_total{reason="priority|duplicate|unresolved_image"}</code></pre>
+
+<p><code>unresolved_image</code> is not a lost event. Falco watches the host as well as the containers on it, and an alert about a process in no container is stored unattributed — it appears in the evidence pack's runtime section with no image beside it.</p>
+
+<h2>How an alert finds its image</h2>
+
+<p>An alert names the image the way the runtime pulled it — <code>nginx:1.27</code> — while this operator records the canonical name <code>docker.io/library/nginx</code>. The endpoint normalises to the second before it stores anything, using the same code path admission uses, so the two match. If the alert carries no image digest, the digest of whatever the cluster last admitted under that name and tag is filled in; when there is nothing to fill in, it is left empty rather than guessed.</p>

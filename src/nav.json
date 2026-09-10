@@ -41,6 +41,18 @@
           "title": "Policies"
         },
         {
+          "slug": "policies-vex",
+          "title": "Producer statements (VEX)"
+        },
+        {
+          "slug": "policies-context",
+          "title": "Deployment context"
+        },
+        {
+          "slug": "policies-whatif",
+          "title": "Try a policy first"
+        },
+        {
           "slug": "admission",
           "title": "Admission"
         },
@@ -63,6 +75,19 @@
         {
           "slug": "backup",
           "title": "Backup and restore"
+        }
+      ]
+    },
+    {
+      "title": "Integrations",
+      "pages": [
+        {
+          "slug": "runtime-events",
+          "title": "Runtime events (Falco)"
+        },
+        {
+          "slug": "issue-trackers",
+          "title": "Issue trackers"
         }
       ]
     },

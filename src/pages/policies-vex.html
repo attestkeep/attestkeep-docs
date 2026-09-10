@@ -1,0 +1,150 @@
+<!--meta {
+  "title": "Producer statements (VEX)",
+  "description": "How a signed OpenVEX statement from a producer you trust can take a finding out of the counts admission decides on, and what is recorded when it does."
+} -->
+
+<h1>Producer statements (VEX)</h1>
+<p class="lede">A scanner reports what is installed in an image. It cannot tell you whether the vulnerable code is reachable, compiled in, or ever executed. The party who built the image can, and OpenVEX is how they say it.</p>
+
+<p>Attestkeep reads such a statement only when <strong>it arrives as a signed in-toto attestation on the image itself and the policy names its signer</strong>. A VEX document in a repository is a text file anybody can write; the same document signed by the producer and attached to the image digest is a claim with a name on it. Unsigned statements, statements from a signer the policy does not name, and statements whose product is not this image are recorded as seen and ignored.</p>
+
+<p>Trivy's own <code>--vex</code> flag is deliberately not used. Trivy can filter its report against a VEX document itself, and then the operator's records would carry the filtered result with no way to say who was trusted, what they claimed, or what was dropped. The trust decision and the audit record stay here.</p>
+
+<h2>The policy block</h2>
+
+<pre><code>apiVersion: attestkeep.com/v1alpha1
+kind: ImageSecurityPolicy
+metadata:
+  name: default
+spec:
+  vex:
+    # ignore (default): every trusted statement is verified, recorded against
+    #   the finding it names and shown in the console, and no verdict moves.
+    # apply: a trusted not_affected or fixed statement takes that finding out
+    #   of the counts admission decides on.
+    mode: apply
+    trustedIssuers:
+      # A keyless signer, named by the certificate identity Fulcio issued.
+      # A trailing "*" matches by prefix; everything else matches exactly.
+      - identity: https://github.com/acme/images/*
+        # Optional, matched exactly. Empty accepts any issuer, which is worth
+        # narrowing: an identity string can be reproduced under a different
+        # issuer, and the pair cannot.
+        issuer: https://token.actions.githubusercontent.com
+      # A keyed signer, named by the public key the signature verifies
+      # against. There is no identity in a keyed signature, so a verification
+      # that succeeds against this key IS the match.
+      - key: |
+          -----BEGIN PUBLIC KEY-----
+          MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...
+          -----END PUBLIC KEY-----</code></pre>
+
+<p>An entry carries <strong>an identity or a key, never both</strong>, and an <code>issuer</code> beside a <code>key</code> is refused rather than ignored — a keyed signature carries no certificate, so nothing would enforce it. <code>mode: apply</code> with an empty <code>trustedIssuers</code> list is refused too: it reads as a control and behaves as nothing.</p>
+
+<p>A policy written before this field existed, or one that omits the block, is <code>mode: ignore</code> with nobody trusted. Nothing is looked up for it at all.</p>
+
+<h2>What each status does</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Status</th><th>Under <code>mode: apply</code></th><th>Under <code>mode: ignore</code></th></tr></thead>
+  <tbody>
+    <tr><td><code>not_affected</code></td><td>the finding leaves the counts</td><td>recorded and shown</td></tr>
+    <tr><td><code>fixed</code></td><td>the finding leaves the counts</td><td>recorded and shown</td></tr>
+    <tr><td><code>affected</code></td><td>recorded and shown</td><td>recorded and shown</td></tr>
+    <tr><td><code>under_investigation</code></td><td>recorded and shown</td><td>recorded and shown</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p><code>affected</code> and <code>under_investigation</code> never suppress anything: "we are looking into it" must not read as "we are fine". A suppressed finding leaves the counts the severity thresholds and the <a href="/policies/">known-exploited rule</a> decide on, and the admission decision that allowed the image says so — the ledger records <code>…; 3 findings suppressed by VEX from "Acme Platform Security"</code>.</p>
+
+<h2>Start in <code>ignore</code></h2>
+
+<p>Under <code>ignore</code> everything happens except the suppression. The statement is verified, the signer is checked against the trusted issuers, the document is parsed, and each matching statement is written onto the finding it names — so the console shows "the producer says not_affected" and the image detail shows the author, the signer and how many findings were answered. No count changes and no verdict changes.</p>
+
+<p>This is the mode to start in. It answers "what are our suppliers actually claiming, and would I have believed them" before anything is allowed to act on it.</p>
+
+<h2>When a policy change takes effect</h2>
+
+<p>Whether a statement is believed is decided at every admission, not at the scan: switching <code>mode</code> off, or dropping an issuer, stops the suppression on the <strong>next pod</strong> rather than after every image happens to be rescanned. The one direction that does need a rescan is adding a trusted issuer whose attestation this operator has never verified against the image — nobody has checked that signature yet, so its statements begin to count at the next scan of that digest. Rescan from the console rather than waiting.</p>
+
+<p>The scan record keeps its own position permanently: an image scanned under <code>ignore</code> starts being suppressed the moment the mode is switched to <code>apply</code>, without waiting for a rescan, while the console goes on showing the scan-time position until that digest is scanned again. A policy edited next week does not rewrite what was counted last week.</p>
+
+<p>A suppressed finding is <strong>not deleted</strong>. It stays in the scan record flagged with the status, the justification and the author, the console hides it behind a <strong>show suppressed</strong> toggle, and the evidence document lists every one of them with the producer's own words beside it.</p>
+
+<h2>Attesting a VEX document</h2>
+
+<p>Write the document (OpenVEX v0.2.0), naming the image by digest:</p>
+
+<pre><code>{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://acme.example/vex/2026-09-09-api",
+  "author": "Acme Platform Security &lt;security@acme.example&gt;",
+  "timestamp": "2026-09-09T09:00:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {"name": "CVE-2024-21626"},
+      "products": [
+        {"@id": "pkg:oci/api@sha256%3A124c7d27...3126"}
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path"
+    }
+  ]
+}</code></pre>
+
+<p>Attest it to the image, with a key:</p>
+
+<pre><code>cosign attest --type openvex --predicate vex.json \
+  --key cosign.key ghcr.io/acme/api@sha256:124c7d27...3126</code></pre>
+
+<p>or keylessly, which is what a CI job does:</p>
+
+<pre><code>COSIGN_EXPERIMENTAL=1 cosign attest -y --type openvex --predicate vex.json \
+  ghcr.io/acme/api@sha256:124c7d27...3126</code></pre>
+
+<p>The operator verifies the attestation on the next scan of that digest — with <code>cosign verify-attestation --key &lt;the policy's key&gt;</code> for a keyed issuer, or keylessly plus a read of the signing certificate stored beside the attestation for a keyless one.</p>
+
+<h2>How a statement is matched to this image</h2>
+
+<p>Two things have to line up before a statement is applied.</p>
+
+<p><strong>The product must name this image.</strong> A product <code>@id</code> matches when it contains the image digest — which covers the spec's own <code>pkg:oci/&lt;name&gt;@sha256%3A&lt;hex&gt;</code> shape, where the colon is percent-escaped inside a purl, as well as a plain <code>registry/repo@sha256:&lt;hex&gt;</code> reference — or when it is exactly the reference the scan ran against. A product named only by repository, with no digest, is not matched: "my product" without a version is a claim about software in general, and findings are suppressed one image at a time.</p>
+
+<p><strong>Where the statement lists <code>subcomponents</code>, the finding's package must be one of them.</strong> The comparison is on the package name and version, not the purl type. A purl splits a name into a namespace and a name, and the scanner reports the name its ecosystem uses, so all three spellings are tried:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Subcomponent purl</th><th>Matches the package the scanner calls</th></tr></thead>
+  <tbody>
+    <tr><td><code>pkg:apk/alpine/openssl@3.1.3-r0</code></td><td><code>openssl</code> at <code>3.1.3-r0</code></td></tr>
+    <tr><td><code>pkg:golang/github.com/acme/lib@v1.2.3</code></td><td><code>github.com/acme/lib</code> at <code>v1.2.3</code></td></tr>
+    <tr><td><code>pkg:maven/org.acme/widget@2.0.0</code></td><td><code>org.acme:widget</code> at <code>2.0.0</code></td></tr>
+    <tr><td><code>pkg:apk/alpine/busybox</code></td><td><code>busybox</code> at any version</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>A purl that carries a version must match it exactly: a statement about openssl 3.1.3-r0 says nothing about 3.1.4-r0. The purl type is deliberately not compared — <code>pkg:deb</code> and <code>pkg:apk</code> name the same source package on two distributions, and a producer writing one where the scanner saw the other is not the mistake this check exists to catch.</p>
+
+<p>When a document carries several statements about the same vulnerability, the one with the latest timestamp wins, which is the spec's own rule: a producer who has since found they are affected must not go on suppressing the finding.</p>
+
+<h2>What is counted, and what is refused</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Series</th><th>What it counts</th></tr></thead>
+  <tbody>
+    <tr><td><code>attestkeep_vex_statements_total{status}</code></td><td>Statements matched to a finding, by what the producer said — one per distinct CVE per scan.</td></tr>
+    <tr><td><code>attestkeep_vex_rejected_total{reason}</code></td><td>Statements seen and not acted on: <code>unsigned</code>, <code>untrusted_signer</code>, <code>product_mismatch</code>, <code>malformed</code>.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p><code>unsigned</code> means the operator could not establish any signing identity behind the attestation — from a policy's point of view that is an unsigned claim, whoever produced it. <code>untrusted_signer</code> is the ordinary case on a cluster running other people's images, and it also covers the quieter one: a VEX attestation is attached to the image and nothing the policy holds could verify it — a keyed statement under a keyless-only issuer list, or one signed with a key you do not have. That case is invisible to cosign, which reports only that there is nothing it can check, so the operator reads the predicate type off the attestation manifest and logs that a VEX attestation is attached to this image but no trusted issuer verified it. If that manifest cannot be read at all — a private registry refusing it, a network that did not answer — the operator says so with a warning rather than reporting the image as carrying no statement. <code>product_mismatch</code> is usually your own mistake: a product id written for a different registry or a previous digest.</p>
+
+<h2>What it adds to the evidence pack</h2>
+
+<p>A <code>vex</code> section listing every suppressed finding with the producer's own words, and the <code>producer-statement-honoured</code> attestation, which is met when the policy applies producer statements and names at least one issuer to trust. A policy that says statements are applied and names no issuer to trust is reported as a gap: no statement can ever be read, and a policy in that shape cannot be written through this operator.</p>
