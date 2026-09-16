@@ -54,7 +54,7 @@
 <table>
   <thead><tr><th>Destination</th><th>Port</th><th>Required?</th><th>Knob</th><th>If blocked</th></tr></thead>
   <tbody>
-    <tr><td><code>lic.attestkeep.com</code></td><td>443</td><td>Yes</td><td><code>license.serverUrl</code></td><td>Activation is impossible; an activated install keeps running on its held certificate and degrades to Community when that certificate expires. See <a href="/licensing/">Licensing</a>.</td></tr>
+    <tr><td><code>lic.attestkeep.com</code></td><td>443</td><td>Unless activated offline</td><td><code>license.serverUrl</code></td><td>Activation over the wire is impossible; an activated install keeps running on its held certificate and degrades to Community when that certificate expires. A cluster with no route at all is licensed by a certificate carried in by hand instead — <a href="/install/#offline-activation">Offline activation</a>, and <a href="/licensing/">Licensing</a>.</td></tr>
     <tr><td><code>ghcr.io</code> (Trivy vulnerability DB)</td><td>443</td><td>For scanning</td><td><code>trivy.dbRepository</code> — mirror it into your own registry</td><td>The existing database keeps working and ages; <code>attestkeep_vulnerability_db_age_seconds</code> tells you by how much.</td></tr>
     <tr><td>Your image registries</td><td>443</td><td>For scanning</td><td>Pull secrets resolved from pod specs; <code>scan.insecureRegistries</code> for HTTP</td><td>Scans fail for images there; admission behaviour follows your policy's cold-image setting.</td></tr>
     <tr><td><code>ghcr.io/attestkeep/attestkeep-k8s</code> (kubelet image pull)</td><td>443</td><td>At install</td><td><code>image.repository</code> — mirror it</td><td>Pods cannot start.</td></tr>

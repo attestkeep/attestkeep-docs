@@ -200,7 +200,38 @@ helm install attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
 
 <p><code>scan.cosignOffline</code> verifies signatures against the key and skips the public transparency log, which no air-gapped cluster can reach. That is a real reduction in what a signature proves, and the <a href="/air-gapped/">air-gapped page</a> says exactly what is lost.</p>
 
-<p>Licensing still needs one route out. Activation and the daily check reach <code>https://lic.attestkeep.com</code> on port 443 and nothing else, which is narrow enough for a proxy with a single allowed destination; there is no offline licence format.</p>
+<p>Licensing takes one narrow route out. Activation and the daily check reach <code>https://lic.attestkeep.com</code> on port 443 and nothing else, which a proxy with a single allowed destination can carry. A cluster that will never have that route takes its certificate by hand instead — <a href="#offline-activation">Offline activation</a>, below.</p>
+
+<h2 id="offline-activation">Offline activation</h2>
+
+<p>A certificate carried into the cluster by hand, for an installation that will never reach the licence service. It is available on every plan except a monthly subscription, Community Edition included.</p>
+
+<ol class="steps">
+  <li><strong>Download the request.</strong> The console's <strong>Activate</strong> screen has two tabs; open <strong>Certificate</strong> and download <code>activation-request.json</code>. It names this cluster and nothing more: the fingerprint — a hash of the <code>kube-system</code> namespace UID — the public half of the signing key the operator generated in the cluster, the cluster name you set, the operator version, and when the file was written.</li>
+  <li><strong>Get the certificate.</strong> On <a href="https://attestkeep.com/app">your licences page</a>, open the licence and then <strong>Offline activation</strong>: accept the offline activation terms, upload the request, and download <code>attestkeep-&lt;cluster&gt;.cert</code>.</li>
+  <li><strong>Upload it.</strong> Back on the same tab in the console. The operator checks our signature, that the fingerprint is this cluster's, that the certificate names the key this operator holds, that it has not expired and that its mode is offline, and says which of those failed if one did. Uploading the same certificate a second time changes nothing.</li>
+</ol>
+
+<p>An installation nobody will open a console on takes the same certificate from a Secret. The request still has to come from a running operator, because the key it names is generated inside the cluster, so the order is install, request, certificate, upgrade:</p>
+
+<pre><code><span class="s"># the request, from the console API — reachable without a session only</span>
+<span class="s"># until the first account exists, an admin session afterwards</span>
+kubectl -n attestkeep port-forward svc/attestkeep 8080:8080
+curl -sOJ http://localhost:8080/api/v1/license/offline-request
+
+<span class="s"># the certificate the licence page issued against it</span>
+kubectl -n attestkeep create secret generic attestkeep-license-cert \
+  --from-file=certificate=attestkeep-production-eu.cert
+
+helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --namespace attestkeep --reuse-values \
+  --set license.existingCertificateSecret=attestkeep-license-cert</code></pre>
+
+<p>The operator reads that Secret at start and activates from it when it holds no certificate, or one dated earlier than this. A Secret left behind after a certificate was uploaded in the console is ignored rather than reinstalled on every restart.</p>
+
+<p>The certificate runs to the end of the licence's paid term plus thirty days, and on Community Edition twelve months from issue. While it holds one the operator never contacts the licence service: no daily check and no renewal. Thirty days before it expires the installation raises the <code>license_expiring</code> notification, telling you to download a new request and fetch a new certificate; after that date it continues as Community Edition. A renewed licence needs a new certificate.</p>
+
+<p>A certificate is bound to one cluster and cannot be withdrawn once issued. So none is issued in the fourteen days after a purchase made through the payment provider, while the money can still be asked back; a licence issued by hand on an invoice has no such wait. The slot it holds is released by <a href="mailto:support@attestkeep.com">support</a> rather than from the cluster — <strong>Deactivate</strong> in the console only removes the certificate locally. The licence page lists every certificate it issued, with its cluster, fingerprint, issue date and expiry, and offers each one for download again.</p>
 
 <h2>Confirm it is running</h2>
 

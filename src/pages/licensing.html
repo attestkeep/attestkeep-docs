@@ -68,9 +68,15 @@ docker.io/library/postgres:16  ─┴─ one image against the quota</code></pre
 
 <h3>Being unreachable is not being denied</h3>
 
-<p>If the licence service cannot be reached, the installation keeps running on the certificate it already holds, for that certificate's remaining term. Only a cluster with permanently no route at all cannot hold a paid licence.</p>
+<p>If the licence service cannot be reached, the installation keeps running on the certificate it already holds, for that certificate's remaining term. A cluster that will never have a route at all takes an offline certificate instead.</p>
 
-<p>A <code>revoked</code> or <code>released</code> answer applies at the next check. There is no offline licence format and no setting that turns the check off — that is a deliberate limit, and the only thing in the product that needs a route out.</p>
+<p>A <code>revoked</code> or <code>released</code> answer applies at the next check. There is no setting that turns the daily check off: an installation that talks to the licence service keeps talking to it, and the way to stop is the offline certificate below rather than a flag.</p>
+
+<h3>The offline certificate</h3>
+
+<p>A cluster that will never reach the licence service is licensed by a certificate carried in by hand. The console writes an activation request — the fingerprint, the operator's public key, the cluster name, the operator version — the licence page issues a certificate against that request, and the console installs it. It is the same signed document the online path hands back, with one claim more, <code>mode</code>, set to <code>offline</code>, and it is checked in the cluster the same way: our signature, this cluster's fingerprint, this operator's key, the expiry, the mode.</p>
+
+<p>Its term is the whole of the licence's paid period plus thirty days, and twelve months from issue on Community Edition. An installation holding one makes no licence call at all — no activation, no daily check, no renewal — so there is nothing left to block. Thirty days before it expires the installation raises the <code>license_expiring</code> notification, saying to download a new request and fetch a new certificate; after that date it continues as Community Edition, and a renewed licence needs a new certificate. Offline activation is available on every plan except a monthly subscription. The steps are on the <a href="/install/#offline-activation">install page</a>.</p>
 
 <figure class="shot">
   <img src="/img/manual/13-usage-license.png" alt="The Usage and Licence page: edition and status, image band, cluster count, activation and subscription dates, and the certificate's own expiry with days remaining, above a Community-versus-Enterprise capability table." loading="lazy" />
@@ -82,6 +88,8 @@ docker.io/library/postgres:16  ─┴─ one image against the quota</code></pre
 <p>Each activation holds a slot until it is released. You release one yourself, from <a href="https://attestkeep.com/app/licenses">your licences page</a> — deleting a cluster should not mean opening a support ticket to reuse the slot you paid for.</p>
 
 <p>A released slot is free immediately, and the installation that was holding it drops out at its next daily check.</p>
+
+<p>A slot held by an offline certificate is the exception. That certificate cannot be withdrawn once issued, so the slot is released by <a href="mailto:support@attestkeep.com">support</a> rather than from your licences page, and the console's <strong>Deactivate</strong> only removes the certificate from the cluster it is in.</p>
 
 <p>Reinstalling into the same cluster does not spend a second slot: the fingerprint is the same, so the existing slot is handed back. If you have run out, the error names the clusters that are holding your slots and when each one activated, so you can decide which to release rather than guess.</p>
 

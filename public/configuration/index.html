@@ -134,6 +134,18 @@
 </table>
 </div>
 
+<h2>Licensing</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Value</th><th>Default</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>license.serverUrl</code></td><td><code>https://lic.attestkeep.com</code></td><td>Where activation and the daily check go, and the only destination licensing uses.</td></tr>
+    <tr><td><code>license.existingCertificateSecret</code></td><td><code>""</code></td><td>The name of a Secret in the release namespace holding an offline certificate under the key <code>certificate</code> — for an installation nobody opens the console of. The operator reads it at start and activates from it when it holds no certificate, or one dated earlier than this, so a Secret left behind after a certificate was uploaded in the console is ignored rather than reinstalled on every restart. A certificate is issued for one cluster against a request that cluster produced: <a href="/install/#offline-activation">Offline activation</a>.</td></tr>
+  </tbody>
+</table>
+</div>
+
 <h2>Scanning</h2>
 
 <div class="table-wrap">

@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Air-gapped clusters — Attestkeep docs</title>
-<meta name="description" content="Mirroring the vulnerability database, what signature verification means without a transparency log, and the one endpoint licensing needs.">
+<meta name="description" content="Mirroring the vulnerability database, what signature verification means without a transparency log, and how licensing works with no route out at all.">
 <link rel="canonical" href="https://docs.attestkeep.com/air-gapped/">
 <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#071f20">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Air-gapped clusters — Attestkeep docs">
-<meta property="og:description" content="Mirroring the vulnerability database, what signature verification means without a transparency log, and the one endpoint licensing needs.">
+<meta property="og:description" content="Mirroring the vulnerability database, what signature verification means without a transparency log, and how licensing works with no route out at all.">
 <meta property="og:url" content="https://docs.attestkeep.com/air-gapped/">
 <script type="application/ld+json">
 {
@@ -19,7 +19,7 @@
     {
       "@type": "TechArticle",
       "headline": "Air-gapped clusters",
-      "description": "Mirroring the vulnerability database, what signature verification means without a transparency log, and the one endpoint licensing needs.",
+      "description": "Mirroring the vulnerability database, what signature verification means without a transparency log, and how licensing works with no route out at all.",
       "url": "https://docs.attestkeep.com/air-gapped/",
       "inLanguage": "en",
       "isPartOf": { "@type": "WebSite", "name": "Attestkeep docs", "url": "https://docs.attestkeep.com/" },
@@ -100,7 +100,7 @@
 
   <main class="content" id="content">
     <h1>Air-gapped clusters</h1>
-<p class="lede">Scanning works entirely inside a perimeter. Licensing needs one narrow route out, and this page is honest about it.</p>
+<p class="lede">Scanning works entirely inside a perimeter, and so does licensing once a certificate has been carried in.</p>
 
 <h2>Nothing is fetched at install time</h2>
 
@@ -132,9 +132,9 @@ helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
 
 <p>"Unsigned" and "could not be verified" have the same effect on the verdict — under a policy that requires signatures both refuse — but they are different failures, and the operator says which one happened in its logs and metrics so a broken verification path does not pass for a deliberate decision not to sign.</p>
 
-<h2>Licensing needs one route out</h2>
+<h2>Licensing, with or without a route out</h2>
 
-<p>There is no offline licence format and no setting that turns the check off. What licensing needs is narrow enough to put through a proxy with a single allowed destination:</p>
+<p>A cluster that can reach the licence service licenses itself over that route, and what it needs is narrow enough to put through a proxy with a single allowed destination:</p>
 
 <div class="table-wrap">
 <table>
@@ -148,7 +148,9 @@ helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
 </table>
 </div>
 
-<p>Community works the same way. A cluster with permanently no route at all is the one case this product cannot license, and saying so plainly is better than selling into it and disappointing later.</p>
+<p>A cluster that will never have that route is licensed by a certificate carried in by hand instead. The console writes an activation request naming the cluster, the licence page at attestkeep.com issues a certificate against it, and the console installs it; from then on the operator makes no licence call at all, and the certificate runs to the end of the licence's paid term plus thirty days, or twelve months from issue on Community Edition. The steps, and the Secret an unattended install takes it from, are under <a href="/install/#offline-activation">Offline activation</a>. It is available on every plan except a monthly subscription.</p>
+
+<p>Community works the same way, on either route.</p>
     <footer class="content__foot">
       <p>Attestkeep — container image security for Kubernetes.</p>
       <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>

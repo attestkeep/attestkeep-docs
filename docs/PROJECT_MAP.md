@@ -14,13 +14,16 @@ attestkeep-docs/
 │       ├── index         — ürün ne yapar, admission nasıl karar verir, ücretsiz araçlara karşı konum, nereden başlanır
 │       ├── install       — üç kurulum profili (production: kendi DB'n; evaluation:
 │       │                   paketli PostgreSQL; air-gapped: ayna + kev.source + cosignOffline),
+│       │                   çevrimdışı aktivasyon (#offline-activation: üç adım,
+│       │                   license.existingCertificateSecret, sertifika süresi),
 │       │                   test edilen K8s tabanı (1.27/1.35), ilk değer
 │       ├── what-runs     — cluster envanteri: workload'lar, RBAC gerekçeleriyle, tüm egress tablosu, lisans sunucusu ele geçirilirse ne olur
 │       ├── scope         — kapsam dışı beş iş (runtime davranış tespiti, IaC/CIS taraması, CSPM, reachability analizi, repo bağımlılık taraması) ve her biri için yanına ne konulacağı
-│       ├── licensing     — planlar, aktivasyon, küme slotları, günlük kontrol (Usage/Licence ekranı + sertifika runway görseli)
+│       ├── licensing     — planlar, aktivasyon, küme slotları, günlük kontrol, çevrimdışı sertifika (Usage/Licence ekranı + sertifika runway görseli)
 │       ├── using-the-console — konsol ekran ekran: güvenlik özeti, politikalar, açıklar, triyaj, kanıt paketi, break-glass, ledger (görselli kılavuz)
 │       ├── configuration — Helm değerleri (postgresql.enabled evaluation, externalDsn
-│       │                   production); konsolda kalanların ayrımı (SSO ekranı görseli)
+│       │                   production, license.* aktivasyon); konsolda kalanların
+│       │                   ayrımı (SSO ekranı görseli)
 │       ├── policies       — ImageSecurityPolicy: alan referansı, hazır politika
 │       │                   örnekleri, endOfLifeOS/knownExploited/provenance kapıları
 │       ├── policies-vex   — imzalı OpenVEX bildirimi bir bulguyu sayımdan nasıl çıkarır
@@ -32,7 +35,7 @@ attestkeep-docs/
 │       ├── operations    — probe'lar, DB kesintisi davranışı, HA, hangi metrik uyandırır,
 │       │                   Prometheus/Alertmanager kural örnekleri (metrik ≠ olay bildirimi),
 │       │                   GitOps/ArgoCD
-│       ├── air-gapped    — veritabanı aynalama, transparency log'suz imza doğrulama
+│       ├── air-gapped    — veritabanı aynalama, transparency log'suz imza doğrulama, hiç yol yoksa çevrimdışı sertifika
 │       ├── upgrade       — yükseltme, şema (1.0.2→1.1.0: 0013–0020, ileri yönlü;
 │       │                   1.1.0→1.1.1: şema değişikliği yok), geri alma, imza doğrulama
 │       ├── backup        — neyi yedekle (evidence-key ve data-key dahil), config export/import, restore'un kanıta etkisi
