@@ -34,6 +34,8 @@ The Go source is checked with `govulncheck` before anything is built, so a vulne
 
 **Fixed — a restarted operator could not release its slot when deactivated; it now can.**
 
+**Changed — the image is built on Go 1.26.6 and grpc 1.83.1.** The new `govulncheck` gate stopped the first 1.1.1 build on twelve reachable vulnerabilities, eleven in the Go 1.26.3 standard library and one in grpc 1.83.0; the release carries the fixed versions and the gate passes clean.
+
 **Changed — the bundled PostgreSQL image moves from 16.4 to 16.15.** A minor upgrade inside the same major series. The StatefulSet restarts once on `helm upgrade`, keeping its data volume; expect one short window where the console and the findings history are unavailable and admission carries on from the policy in the cluster. Installations pointed at a database you operate, with `postgresql.enabled=false`, are unaffected.
 
 **Fixed — the activation screen's "No key yet?" line sat against the Continue button.** Spacing only; activation itself was never affected.
