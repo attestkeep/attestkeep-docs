@@ -185,6 +185,7 @@ helm install attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
   --set trivy.dbRepository=registry.internal/mirror/trivy-db \
   --set trivy.javaDbRepository=registry.internal/mirror/trivy-java-db \
   --set trivy.dbRegistrySecret=trivy-db-auth \
+  --set kev.existingConfigMap=kev-catalog \
   --set kev.source=file:///etc/kev/known_exploited_vulnerabilities.json \
   --set scan.cosignOffline=true \
   --set clusterName=production-eu \
@@ -193,7 +194,7 @@ helm install attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
 <p>The chart itself comes from a public registry too: <code>helm pull oci://ghcr.io/attestkeep/charts/attestkeep --version 1.1.1</code> on the connected host, and install the <code>.tgz</code> inside the perimeter.</p>
 
 <div class="note">
-  <p><strong>The chart does not mount the KEV ConfigMap for you.</strong> <code>kev.source</code> names a path; putting a file at that path on the scanner is a volume the chart has no value for yet, so it has to be patched onto the scanner Deployment. Leaving <code>kev.source</code> empty is the other option: nothing is refreshed, the catalogue already in the database keeps marking findings, and the evidence package records which version that is.</p>
+  <p><strong><code>kev.existingConfigMap</code> mounts the ConfigMap read-only at <code>/etc/kev</code> on the scanner, and <code>kev.source</code> names the file inside it.</strong> The key is the name of the file the ConfigMap was created from, which is why the path repeats <code>known_exploited_vulnerabilities.json</code>. Refreshing the mirror is a replacement of that ConfigMap. Leaving <code>kev.source</code> empty is the other option: nothing is refreshed, the catalogue already in the database keeps marking findings, and the evidence package records which version that is.</p>
 </div>
 
 <p><code>scan.cosignOffline</code> verifies signatures against the key and skips the public transparency log, which no air-gapped cluster can reach. That is a real reduction in what a signature proves, and the <a href="/air-gapped/">air-gapped page</a> says exactly what is lost.</p>
