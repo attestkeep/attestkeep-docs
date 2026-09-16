@@ -105,12 +105,16 @@ code {
   font: 400 .88em/1.5 var(--mono, ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, monospace);
   background: var(--bg-raise); border: 1px solid var(--line);
   padding: 1px 5px; border-radius: 4px; color: var(--accent-2);
+  /* A metric name or a long flag has no break opportunity of its own; on a
+     phone it has to break anyway, or it widens the page. Inside <pre> the
+     block scrolls instead, and pre code below keeps that. */
+  overflow-wrap: anywhere;
 }
 pre {
   background: var(--bg-raise); border: 1px solid var(--line);
   border-radius: 8px; padding: 16px 18px; margin: 18px 0;
 }
-pre code { background: none; border: 0; padding: 0; color: var(--text); font-size: 13.5px; }
+pre code { background: none; border: 0; padding: 0; color: var(--text); font-size: 13.5px; overflow-wrap: normal; }
 pre .s { color: var(--faint); }
 
 blockquote {
@@ -137,7 +141,10 @@ blockquote strong { color: var(--accent-2); }
 /* --- narrow --------------------------------------------------------------- */
 
 @media (max-width: 860px) {
-  .shell { grid-template-columns: 1fr; }
+  /* minmax(0, 1fr), not 1fr: a grid track's default minimum is the content's
+     own width, so one long line in a <pre> widened the whole page instead of
+     scrolling inside its box. The desktop track already says so. */
+  .shell { grid-template-columns: minmax(0, 1fr); }
   .top__links { display: none; }
   .top__menu { display: block; }
   .sidebar {
