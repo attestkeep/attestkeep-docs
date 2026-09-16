@@ -100,7 +100,7 @@
 
   <main class="content" id="content">
     <h1>Install</h1>
-<p class="lede">One Helm command. The chart pulls straight from the registry — there is no repository to add.</p>
+<p class="lede">One Helm command, in the shape your cluster needs. The chart pulls straight from the registry — there is no repository to add.</p>
 
 <h2>Before you start</h2>
 
@@ -116,17 +116,89 @@
 <p>Every release is signed on its digest. The keyed check needs nothing beyond your registry and our public key, published at <a href="/cosign.pub">docs.attestkeep.com/cosign.pub</a>; see <a href="/releases/">Releases</a> for the keyless check and what each one proves.</p>
 
 <pre><code>curl -sO https://docs.attestkeep.com/cosign.pub
-cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.5</code></pre>
+cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:1.1.1</code></pre>
 
 <h2>Install</h2>
 
-<pre><code><span class="s"># installs from the registry; no `helm repo add` needed</span>
+<p>The chart installs straight from the registry — there is no <code>helm repo add</code>. Three shapes, and the one you want is decided by the database and by whether the cluster can reach a public registry. Everything after this section is the same for all three.</p>
+
+<p><code>clusterName</code> appears in all three because it is the one value worth setting on the first install, even for a trial. It is the label every notification and every evidence document uses to say which installation it came from, and it cannot be inferred from the cluster. Nothing topological leaves the cluster, so this is a name you choose, not a hostname.</p>
+
+<h3>Production — a database you operate</h3>
+
+<p>For an installation you intend to keep: the database is yours, on your own backup and upgrade schedule. Put the DSN in a secret rather than on the command line — an inline value lands in your Helm release history and stays there.</p>
+
+<pre><code>kubectl create namespace attestkeep
+
+kubectl -n attestkeep create secret generic attestkeep-db \
+  --from-literal=dsn='postgres://attestkeep:PASSWORD@db.internal:5432/attestkeep?sslmode=require'
+
 helm install attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --namespace attestkeep \
+  --set postgresql.enabled=false \
+  --set externalDsnExistingSecret.name=attestkeep-db \
+  --set clusterName=production-eu \
+  --wait</code></pre>
+
+<p>With an external database the chart creates no database and no volume claim for one. The only claim left is the scanner's vulnerability-database cache, <code>trivy.cache.persistence</code>, 5 GiB by default. Set <code>trivy.cache.persistence.enabled=false</code> and that claim is gone too — the cache becomes an <code>emptyDir</code> and the scanner downloads the vulnerability database again after every restart, which is the trade to make on a cluster with no storage class worth using.</p>
+
+<p>The policy admission decides against is a cluster-scoped CRD, not a row in that database, so a database outage does not take the rules with it: the <code>:latest</code>, registry, digest and break-glass gates keep refusing exactly what they refused before. What degrades is everything that needs a stored scan record, and <code>webhook.failurePolicy</code> decides what happens then — the trade is set out in <a href="/operations/">Operations</a>.</p>
+
+<h3>Evaluation — the bundled PostgreSQL</h3>
+
+<p>For a first look, and for Community Edition on a single cluster. One command, no database to prepare.</p>
+
+<pre><code>helm install attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
   --namespace attestkeep --create-namespace \
   --set clusterName=production-eu \
   --wait</code></pre>
 
-<p><code>clusterName</code> is the one value worth setting on the first install, even for a trial. It is the label every notification and every evidence document uses to say which installation it came from, and it cannot be inferred from the cluster. Nothing topological leaves the cluster, so this is a name you choose, not a hostname.</p>
+<p>The chart brings up a single-replica PostgreSQL with a 20 GiB volume and generates its password. It is adequate for Community Edition and single-cluster evaluation, and it is not the shape for production: one replica, no backup of its own, and an upgrade of the database is an upgrade of the chart. Moving to your own database later is the production command above plus a dump and restore.</p>
+
+<h3>Air-gapped — no route to a public registry</h3>
+
+<p>For a cluster behind a perimeter. It is the production command plus the four things that otherwise reach outside: the operator image, the vulnerability database, the known-exploited catalogue, and signature verification. <a href="/air-gapped/">Air-gapped clusters</a> covers what each of those costs.</p>
+
+<pre><code><span class="s"># on a host that can reach both sides; oras copy does the same job</span>
+crane copy ghcr.io/attestkeep/attestkeep-k8s:1.1.1 \
+  registry.internal/mirror/attestkeep-k8s:1.1.1
+crane copy ghcr.io/aquasecurity/trivy-db:2 \
+  registry.internal/mirror/trivy-db:2
+crane copy ghcr.io/aquasecurity/trivy-java-db:1 \
+  registry.internal/mirror/trivy-java-db:1
+
+<span class="s"># the namespace, the database secret from the production profile above,</span>
+<span class="s"># the credential the mirror asks for, and the KEV catalogue as a file</span>
+kubectl create namespace attestkeep
+kubectl -n attestkeep create secret generic attestkeep-db \
+  --from-literal=dsn='postgres://attestkeep:PASSWORD@db.internal:5432/attestkeep?sslmode=require'
+kubectl -n attestkeep create secret docker-registry trivy-db-auth \
+  --docker-server=registry.internal --docker-username=USER --docker-password=PASS
+kubectl -n attestkeep create configmap kev-catalog \
+  --from-file=known_exploited_vulnerabilities.json
+
+helm install attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --namespace attestkeep \
+  --set image.repository=registry.internal/mirror/attestkeep-k8s \
+  --set postgresql.enabled=false \
+  --set externalDsnExistingSecret.name=attestkeep-db \
+  --set trivy.dbRepository=registry.internal/mirror/trivy-db \
+  --set trivy.javaDbRepository=registry.internal/mirror/trivy-java-db \
+  --set trivy.dbRegistrySecret=trivy-db-auth \
+  --set kev.source=file:///etc/kev/known_exploited_vulnerabilities.json \
+  --set scan.cosignOffline=true \
+  --set clusterName=production-eu \
+  --wait</code></pre>
+
+<p>The chart itself comes from a public registry too: <code>helm pull oci://ghcr.io/attestkeep/charts/attestkeep --version 1.1.1</code> on the connected host, and install the <code>.tgz</code> inside the perimeter.</p>
+
+<div class="note">
+  <p><strong>The chart does not mount the KEV ConfigMap for you.</strong> <code>kev.source</code> names a path; putting a file at that path on the scanner is a volume the chart has no value for yet, so it has to be patched onto the scanner Deployment. Leaving <code>kev.source</code> empty is the other option: nothing is refreshed, the catalogue already in the database keeps marking findings, and the evidence package records which version that is.</p>
+</div>
+
+<p><code>scan.cosignOffline</code> verifies signatures against the key and skips the public transparency log, which no air-gapped cluster can reach. That is a real reduction in what a signature proves, and the <a href="/air-gapped/">air-gapped page</a> says exactly what is lost.</p>
+
+<p>Licensing still needs one route out. Activation and the daily check reach <code>https://lic.attestkeep.com</code> on port 443 and nothing else, which is narrow enough for a proxy with a single allowed destination; there is no offline licence format.</p>
 
 <h2>Confirm it is running</h2>
 
@@ -172,14 +244,11 @@ kubectl -n attestkeep port-forward svc/attestkeep 8080:8080</code></pre>
 
 <h2>The database builds itself</h2>
 
-<p>Migrations are compiled into the binary and applied on first connection, each recorded so it runs exactly once. There is no SQL for you to run and no migration step to forget on upgrade.</p>
+<p>Migrations are compiled into the binary and applied on first connection, each recorded so it runs exactly once. There is no SQL for you to run and no migration step to forget on upgrade, and this holds for the bundled database and for one you operate alike.</p>
 
-<p>To use a database you already run, put the DSN in a secret rather than on the command line — an inline value lands in your Helm release history and stays there.</p>
+<p>An installation that started on the bundled database moves to your own with the same two flags the production profile uses, once the data is restored into it:</p>
 
-<pre><code>kubectl -n attestkeep create secret generic attestkeep-db \
-  --from-literal=dsn='postgres://user:pass@db.internal:5432/attestkeep?sslmode=require'
-
-helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
   --namespace attestkeep \
   --set postgresql.enabled=false \
   --set externalDsnExistingSecret.name=attestkeep-db</code></pre>

@@ -14,7 +14,28 @@ that cannot reach the transparency log. Verify the digest, not the tag.
 
 ```sh
 curl -sO https://docs.attestkeep.com/cosign.pub
-cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.5
+cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:1.1.1
+```
+
+## 1.1.1 — 2026-09-16
+
+**Added — every release from 1.1.1 carries a signed vulnerability attestation beside its SBOM, and the pipeline refuses to publish an image with a fixable Critical or High.** The release workflow scans the image it has just built and stops there if the scan finds a Critical or High with a fix published upstream: leaving a fix that exists untaken is a choice, and not one we make on behalf of a cluster that installed this product to be told about exactly such things. Findings with no fix available do not block — there is nothing to upgrade to — and they are not hidden either: the attestation carries the whole scan result, unfixed findings included. The scanner is the same Trivy version the image ships, so an operator re-running the scan reads the same scanner's answer. The result is signed with the key that signs the bill of materials and travels on the image:
+
+```sh
+cosign verify-attestation --key cosign.pub --type vuln \
+  ghcr.io/attestkeep/attestkeep-k8s:1.1.1
+```
+
+The Go source is checked with `govulncheck` before anything is built, so a vulnerability the program can actually reach — including one in the Go standard library, which an image scan does not look at — stops the release instead of arriving in an image.
+
+**Changed — the bundled PostgreSQL image moves from 16.4 to 16.15.** A minor upgrade inside the same major series. The StatefulSet restarts once on `helm upgrade`, keeping its data volume; expect one short window where the console and the findings history are unavailable and admission carries on from the policy in the cluster. Installations pointed at a database you operate, with `postgresql.enabled=false`, are unaffected.
+
+**Fixed — the activation screen's "No key yet?" line sat against the Continue button.** Spacing only; activation itself was never affected.
+
+```sh
+helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 1.1.1 \
+  --namespace attestkeep --wait
 ```
 
 ## 1.1.0 — 2026-09-10

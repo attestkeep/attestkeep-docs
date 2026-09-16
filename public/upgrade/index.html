@@ -110,11 +110,19 @@
 <p>Pin the version if your change process needs it:</p>
 
 <pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
-  --namespace attestkeep --version 0.3.5 --wait</code></pre>
+  --namespace attestkeep --version 1.1.1 --wait</code></pre>
 
 <h2>What happens to the database</h2>
 
 <p>Each migration is recorded when it runs, so it runs exactly once no matter how many replicas start at the same time. Findings, decisions, exceptions and evidence survive the upgrade; nothing is rebuilt from scratch.</p>
+
+<h2>1.1.0 to 1.1.1</h2>
+
+<p>No schema change: 1.1.1 adds no migration, so this is a Helm upgrade and nothing else. A <code>helm rollback</code> to 1.1.0 works, which is not true of the step below it.</p>
+
+<p>Installations on the bundled PostgreSQL restart it once, because the pinned image moves from <code>16.4-alpine</code> to <code>16.15-alpine</code>. The data volume is kept. During that restart the console and the findings history are unavailable and admission carries on from the policy held in the cluster. Installations pointed at a database you operate see no restart at all.</p>
+
+<p>Everything else in 1.1.1 is in the release pipeline rather than in the cluster: the image now carries a signed vulnerability attestation beside its SBOM, which the <a href="/releases/">release notes</a> show how to check.</p>
 
 <h2>1.0.2 to 1.1.0</h2>
 
@@ -140,7 +148,7 @@
 
 <p>Every release is signed. Check it before you upgrade:</p>
 
-<pre><code>cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.3.5 \
+<pre><code>cosign verify ghcr.io/attestkeep/attestkeep-k8s:1.1.1 \
   --certificate-identity-regexp '^https://github.com/attestkeep/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com</code></pre>
 

@@ -118,6 +118,8 @@ helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
   --namespace attestkeep \
   --set trivy.dbRepository=registry.internal/mirror/trivy-db</code></pre>
 
+<p>The whole air-gapped install — this mirror, the Java database, the operator image, the catalogue and the offline signature check in one command — is the third profile on the <a href="/install/">install page</a>.</p>
+
 <p>Refresh the mirror on whatever schedule your change process allows. A stale database is not a broken installation — it is an installation making decisions on older information, and the evidence package records which database version a finding came from so that is visible rather than assumed.</p>
 
 <h2>Signature verification without a transparency log</h2>

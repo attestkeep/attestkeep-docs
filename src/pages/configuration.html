@@ -29,11 +29,11 @@
 <table>
   <thead><tr><th>Value</th><th>Default</th><th>What it does</th></tr></thead>
   <tbody>
-    <tr><td><code>postgresql.enabled</code></td><td><code>true</code></td><td>Install a PostgreSQL alongside. Turn off to use your own.</td></tr>
+    <tr><td><code>postgresql.enabled</code></td><td><code>true</code></td><td>Install a PostgreSQL alongside, for evaluation and single-cluster Community use. Production installs point at a database you operate.</td></tr>
     <tr><td><code>postgresql.persistence.size</code></td><td><code>20Gi</code></td><td></td></tr>
     <tr><td><code>postgresql.auth.password</code></td><td><code>""</code></td><td>Generated when empty.</td></tr>
-    <tr><td><code>externalDsnExistingSecret.name</code></td><td><code>""</code></td><td><strong>Preferred</strong> for an external database.</td></tr>
-    <tr><td><code>externalDsn</code></td><td><code>""</code></td><td>A DSN inline. Avoid: it lands in your Helm release history and stays there.</td></tr>
+    <tr><td><code>externalDsnExistingSecret.name</code></td><td><code>""</code></td><td>The name of a Secret holding the DSN of your own database. <strong>Preferred for production</strong>, and the only place a DSN should live.</td></tr>
+    <tr><td><code>externalDsn</code></td><td><code>""</code></td><td>The same DSN inline. Preferred for production over the bundled database, but not over the Secret above: an inline value lands in your Helm release history and stays there.</td></tr>
   </tbody>
 </table>
 </div>

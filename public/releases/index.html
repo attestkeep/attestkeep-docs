@@ -115,14 +115,33 @@
 
 <pre><code><span class="s"># keyed — works offline once you hold the key</span>
 curl -sO https://docs.attestkeep.com/cosign.pub
-cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.5
+cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:1.1.1
 
 <span class="s"># keyless — proves the digest was built by our release workflow on GitHub</span>
-cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.3.5 \
+cosign verify ghcr.io/attestkeep/attestkeep-k8s:1.1.1 \
   --certificate-identity-regexp '^https://github.com/attestkeep/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com</code></pre>
 
 <p>Always verify the digest, not the tag: a tag can be moved to different content after it was signed, a digest cannot. This is the same argument the product makes to your own cluster in <code>digestEnforcement</code>.</p>
+
+<h2>v1.1.1</h2>
+
+<p>2026-09-16.</p>
+
+<p><strong>Added — every release from 1.1.1 carries a signed vulnerability attestation beside its SBOM, and the pipeline refuses to publish an image with a fixable Critical or High.</strong> The release workflow scans the image it has just built and stops there if the scan finds a Critical or High with a fix published upstream: leaving a fix that exists untaken is a choice, and not one we make on behalf of a cluster that installed this product to be told about exactly such things. Findings with no fix available do not block — there is nothing to upgrade to — and they are not hidden either: the attestation carries the whole scan result, unfixed findings included. The scanner is the same Trivy version the image ships, so an operator re-running the scan reads the same scanner's answer. The result is signed with the key that signs the bill of materials and travels on the image:</p>
+
+<pre><code>cosign verify-attestation --key cosign.pub --type vuln \
+  ghcr.io/attestkeep/attestkeep-k8s:1.1.1</code></pre>
+
+<p>The Go source is checked with <code>govulncheck</code> before anything is built, so a vulnerability the program can actually reach — including one in the Go standard library, which an image scan does not look at — stops the release instead of arriving in an image.</p>
+
+<p><strong>Changed — the bundled PostgreSQL image moves from 16.4 to 16.15.</strong> A minor upgrade inside the same major series. The StatefulSet restarts once on <code>helm upgrade</code>, keeping its data volume; expect one short window where the console and the findings history are unavailable and admission carries on from the policy in the cluster. Installations pointed at a database you operate, with <code>postgresql.enabled=false</code>, are unaffected.</p>
+
+<p><strong>Fixed — the activation screen's "No key yet?" line sat against the Continue button.</strong> Spacing only; activation itself was never affected.</p>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 1.1.1 \
+  --namespace attestkeep --wait</code></pre>
 
 <h2>v1.1.0</h2>
 
@@ -358,7 +377,11 @@ kubectl -n attestkeep get deploy attestkeep \
 <p>The SBOM travels with the image itself, as a signed CycloneDX attestation — pull it straight from the registry:</p>
 
 <pre><code>cosign verify-attestation --type cyclonedx --key cosign.pub \
-  ghcr.io/attestkeep/attestkeep-k8s:0.1.0</code></pre>
+  ghcr.io/attestkeep/attestkeep-k8s:0.1.0
+
+<span class="s"># from 1.1.1 on, the scan of the image travels beside it</span>
+cosign verify-attestation --type vuln --key cosign.pub \
+  ghcr.io/attestkeep/attestkeep-k8s:1.1.1</code></pre>
     <footer class="content__foot">
       <p>Attestkeep — container image security for Kubernetes.</p>
       <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>

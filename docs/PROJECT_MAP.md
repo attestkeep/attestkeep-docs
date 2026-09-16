@@ -12,12 +12,15 @@ attestkeep-docs/
 │   │                       build'i düşürür (öksüz sayfa yayınlanmaz)
 │   └── pages/            — her sayfanın gövdesi + <!--meta {...} --> bloğu
 │       ├── index         — ürün ne yapar, admission nasıl karar verir, ücretsiz araçlara karşı konum, nereden başlanır
-│       ├── install       — Helm ile kurulum, test edilen K8s tabanı (1.27/1.35), ilk değer
+│       ├── install       — üç kurulum profili (production: kendi DB'n; evaluation:
+│       │                   paketli PostgreSQL; air-gapped: ayna + kev.source + cosignOffline),
+│       │                   test edilen K8s tabanı (1.27/1.35), ilk değer
 │       ├── what-runs     — cluster envanteri: workload'lar, RBAC gerekçeleriyle, tüm egress tablosu, lisans sunucusu ele geçirilirse ne olur
 │       ├── scope         — kapsam dışı beş iş (runtime davranış tespiti, IaC/CIS taraması, CSPM, reachability analizi, repo bağımlılık taraması) ve her biri için yanına ne konulacağı
 │       ├── licensing     — planlar, aktivasyon, küme slotları, günlük kontrol (Usage/Licence ekranı + sertifika runway görseli)
 │       ├── using-the-console — konsol ekran ekran: güvenlik özeti, politikalar, açıklar, triyaj, kanıt paketi, break-glass, ledger (görselli kılavuz)
-│       ├── configuration — Helm değerleri; konsolda kalanların ayrımı (SSO ekranı görseli)
+│       ├── configuration — Helm değerleri (postgresql.enabled evaluation, externalDsn
+│       │                   production); konsolda kalanların ayrımı (SSO ekranı görseli)
 │       ├── policies       — ImageSecurityPolicy: alan referansı, hazır politika
 │       │                   örnekleri, endOfLifeOS/knownExploited/provenance kapıları
 │       ├── policies-vex   — imzalı OpenVEX bildirimi bir bulguyu sayımdan nasıl çıkarır
@@ -26,10 +29,12 @@ attestkeep-docs/
 │       ├── policies-whatif — taslak politikayı ledger üzerinde tekrar oynatma
 │       ├── admission     — karar akışı, failurePolicy ve coldImagePolicy duruşu
 │       ├── verify-enforcement — 5 dakikalık runbook: kötü pod at, reddi gör, kaydı doğrula
-│       ├── operations    — probe'lar, DB kesintisi davranışı, HA, hangi metrik uyandırır, GitOps/ArgoCD
+│       ├── operations    — probe'lar, DB kesintisi davranışı, HA, hangi metrik uyandırır,
+│       │                   Prometheus/Alertmanager kural örnekleri (metrik ≠ olay bildirimi),
+│       │                   GitOps/ArgoCD
 │       ├── air-gapped    — veritabanı aynalama, transparency log'suz imza doğrulama
-│       ├── upgrade       — yükseltme, şema (1.0.2→1.1.0: 0013–0020, ileri yönlü),
-│       │                   geri alma, imza doğrulama
+│       ├── upgrade       — yükseltme, şema (1.0.2→1.1.0: 0013–0020, ileri yönlü;
+│       │                   1.1.0→1.1.1: şema değişikliği yok), geri alma, imza doğrulama
 │       ├── backup        — neyi yedekle (evidence-key ve data-key dahil), config export/import, restore'un kanıta etkisi
 │       ├── runtime-events — Falco/Falcosidekick webhook uçnoktası; admission kararını
 │       │                   değiştirmez, runtime tespiti kapsam dışı kalır
@@ -39,7 +44,8 @@ attestkeep-docs/
 │       ├── compliance    — eşlenen 13 çerçeve (293 madde), kanıt paketi içeriği,
 │       │                   iddia edilmeyenler ve çeviri şerhleri
 │       ├── verifying-reports — indirilen kanıt paketini bağımsız doğrulama
-│       ├── releases      — sürüm geçmişi, imza doğrulama komutları
+│       ├── releases      — sürüm geçmişi, imza ve attestation doğrulama komutları
+│       │                   (1.1.1'den itibaren `--type vuln` de var)
 │       ├── troubleshooting — sahada gerçekten karşılaşılan beş şey
 │       ├── support       — hata bildirimi, açık bildirimi, plana göre destek
 │       └── 404           — gezinilebilir değil, bilerek nav dışında
@@ -65,3 +71,5 @@ Notlar:
 - Kurulum komutları `attestkeep` chart ve `ghcr.io/attestkeep/attestkeep-k8s`
   imaj adlarını kullanır. Bu adlar ürün rename'i ile birlikte gerçek oldu
   (2026-08-27); rename öncesi yazılmış hiçbir komut burada bırakılmadı.
+- Changelog iki yerde birebir aynı: `src/pages/releases.html` ve kökteki
+  `CHANGELOG.md`. Son girdi **1.1.1** (2026-09-16).

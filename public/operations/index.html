@@ -163,6 +163,41 @@
 
 <p>Latency, if you watch it: <code>attestkeep_admission_duration_seconds</code> is a histogram labelled <code>path="cached"</code> or <code>"cold"</code> — the cached path is the one your rollouts feel. We do not publish latency numbers yet, because we have not measured them at a scale worth quoting; measure your own p99 from this series.</p>
 
+<h2>Alerting from the metrics</h2>
+
+<p>Nothing needs configuring inside Attestkeep for this. The series above are ordinary Prometheus metrics, so the alerting you already run is the alerting you get. A rule group to start from:</p>
+
+<pre><code>groups:
+  - name: attestkeep
+    rules:
+      - alert: AttestkeepDown
+        expr: attestkeep_up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Attestkeep has not reported for five minutes; admission is unreviewed under failurePolicy Ignore.
+
+      - alert: AttestkeepAdmissionDenialsSpike
+        expr: increase(attestkeep_admission_denials_total[10m]) &gt; 20
+        labels:
+          severity: warning
+        annotations:
+          summary: More than 20 admissions refused in ten minutes — one reason is a story, all of them is a policy change.
+
+      - alert: AttestkeepScansFailing
+        expr: increase(attestkeep_scans_failed_total[30m]) &gt; 5
+        labels:
+          severity: warning
+        annotations:
+          summary: Scans are failing; verdicts stop being refreshed and new images stay Unknown.</code></pre>
+
+<p>Where those alerts go is Alertmanager's own business: PagerDuty, Opsgenie, e-mail and Slack all follow from its receivers, and nothing about them is specific to this product. Grafana alerting reads the same expressions if that is where your rules live.</p>
+
+<div class="note">
+  <p><strong>Event notifications are a different channel, not a metric.</strong> A critical finding, a blocked admission, an expiring licence, a break-glass window opening — those are events the operator sends itself, to Slack, Microsoft Teams, e-mail, a webhook, GitHub, GitLab or Jira, configured in the console. They carry the image, the CVE and the reason, which a counter cannot. Use metrics to learn that something is wrong with the installation, and the product's own channels to learn what it found.</p>
+</div>
+
 <h2>The outage record</h2>
 
 <p>Windows in which the control was not operating are recorded in the database (<code>webhook_outages</code>) and reported in every evidence document's <code>availability</code> block. Two things create an entry, both written when the operator can see again, with honest wording about what it cannot know:</p>
