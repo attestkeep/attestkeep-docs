@@ -28,7 +28,7 @@ cosign verify-attestation --key cosign.pub --type vuln \
 
 The Go source is checked with `govulncheck` before anything is built, so a vulnerability the program can actually reach — including one in the Go standard library, which an image scan does not look at — stops the release instead of arriving in an image.
 
-**Added — `kev.existingConfigMap` mounts a mirrored KEV catalogue into the scanner, so an air-gapped cluster can run the known-exploited gate from a file.**
+**Added — `kev.existingConfigMap` mounts a mirrored KEV catalogue into the scanner, so an air-gapped cluster can run the known-exploited gate from a file.** The catalogue is larger than a ConfigMap allows, so it is carried gzipped and the scanner decompresses it by content.
 
 **Changed — the bundled PostgreSQL image moves from 16.4 to 16.15.** A minor upgrade inside the same major series. The StatefulSet restarts once on `helm upgrade`, keeping its data volume; expect one short window where the console and the findings history are unavailable and admission carries on from the policy in the cluster. Installations pointed at a database you operate, with `postgresql.enabled=false`, are unaffected.
 

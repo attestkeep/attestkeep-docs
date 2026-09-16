@@ -39,7 +39,7 @@ cosign verify ghcr.io/attestkeep/attestkeep-k8s:1.1.1 \
 
 <p>The Go source is checked with <code>govulncheck</code> before anything is built, so a vulnerability the program can actually reach — including one in the Go standard library, which an image scan does not look at — stops the release instead of arriving in an image.</p>
 
-<p><strong>Added — <code>kev.existingConfigMap</code> mounts a mirrored KEV catalogue into the scanner, so an air-gapped cluster can run the known-exploited gate from a file.</strong></p>
+<p><strong>Added — <code>kev.existingConfigMap</code> mounts a mirrored KEV catalogue into the scanner, so an air-gapped cluster can run the known-exploited gate from a file.</strong> The catalogue is larger than a ConfigMap allows, so it is carried gzipped and the scanner decompresses it by content.</p>
 
 <p><strong>Changed — the bundled PostgreSQL image moves from 16.4 to 16.15.</strong> A minor upgrade inside the same major series. The StatefulSet restarts once on <code>helm upgrade</code>, keeping its data volume; expect one short window where the console and the findings history are unavailable and admission carries on from the policy in the cluster. Installations pointed at a database you operate, with <code>postgresql.enabled=false</code>, are unaffected.</p>
 
