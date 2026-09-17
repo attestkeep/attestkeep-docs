@@ -204,11 +204,11 @@ helm install attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
 
 <h2 id="offline-activation">Offline activation</h2>
 
-<p>A certificate carried into the cluster by hand, for an installation that will never reach the licence service. It is available on every plan except a monthly subscription, Community Edition included.</p>
+<p>A certificate carried into the cluster by hand, for an installation that will never reach the licence service. It is available on annual Enterprise licences from the fifteenth day after the purchase, and on any annual licence opened under an agreement with us. Community, Team and Business licences bought through checkout do not have it.</p>
 
 <ol class="steps">
   <li><strong>Download the request.</strong> The console's <strong>Activate</strong> screen has two tabs; open <strong>Certificate</strong> and download <code>activation-request.json</code>. It names this cluster and nothing more: the fingerprint — a hash of the <code>kube-system</code> namespace UID — the public half of the signing key the operator generated in the cluster, the cluster name you set, the operator version, and when the file was written.</li>
-  <li><strong>Get the certificate.</strong> On <a href="https://attestkeep.com/app">your licences page</a>, open the licence and then <strong>Offline activation</strong>: accept the offline activation terms, upload the request, and download <code>attestkeep-&lt;cluster&gt;.cert</code>.</li>
+  <li><strong>Get the certificate.</strong> On <a href="https://attestkeep.com/app">your licences page</a>, open the licence and then <strong>Offline activation</strong>. On an Enterprise licence you accept the offline activation terms there; on a licence opened under an agreement that step is already done. Upload the request and download <code>attestkeep-&lt;cluster&gt;.cert</code>.</li>
   <li><strong>Upload it.</strong> Back on the same tab in the console. The operator checks our signature, that the fingerprint is this cluster's, that the certificate names the key this operator holds, that it has not expired and that its mode is offline, and says which of those failed if one did. Uploading the same certificate a second time changes nothing.</li>
 </ol>
 
@@ -229,7 +229,7 @@ helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
 
 <p>The operator reads that Secret at start and activates from it when it holds no certificate, or one dated earlier than this. A Secret left behind after a certificate was uploaded in the console is ignored rather than reinstalled on every restart.</p>
 
-<p>The certificate runs to the end of the licence's paid term plus thirty days, and on Community Edition twelve months from issue. While it holds one the operator never contacts the licence service: no daily check and no renewal. Thirty days before it expires the installation raises the <code>license_expiring</code> notification, telling you to download a new request and fetch a new certificate; after that date it continues as Community Edition. A renewed licence needs a new certificate.</p>
+<p>The certificate runs to the end of the licence's paid term plus thirty days, and twelve months from issue on a licence with no end date. While it holds one the operator never contacts the licence service: no daily check and no renewal. Thirty days before it expires the installation raises the <code>license_expiring</code> notification, telling you to download a new request and fetch a new certificate; after that date it continues as Community Edition. A renewed licence needs a new certificate.</p>
 
 <p>A certificate is bound to one cluster and cannot be withdrawn once issued. So none is issued in the fourteen days after a purchase made through the payment provider, while the money can still be asked back; a licence issued by hand on an invoice has no such wait. The slot it holds is released by <a href="mailto:support@attestkeep.com">support</a> rather than from the cluster — <strong>Deactivate</strong> in the console only removes the certificate locally. The licence page lists every certificate it issued, with its cluster, fingerprint, issue date and expiry, and offers each one for download again.</p>
 
