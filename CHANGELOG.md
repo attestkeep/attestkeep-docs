@@ -17,6 +17,10 @@ curl -sO https://docs.attestkeep.com/cosign.pub
 cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.5
 ```
 
+## Unreleased
+
+**Added — a Falco alert can now notify a person and open an issue, not only be filed.** Two new values sit beside `integrations.falco.minPriority`: `notifyPriority` (`error` by default) sends a stored alert at or above it to every notification channel subscribed to the new `runtime_alert` event, at most once per rule and image per hour; `issuePriority` (`critical` by default) also opens an issue in the GitHub, GitLab or Jira channels subscribed to that event, one per image digest and rule, titled `RUNTIME: <rule> in <image>` and labelled `runtime`. A runtime issue closes as `quiet` after 7 days without that rule on that image, or as `image_retired`; neither is counted as remediation. The evidence pack's `runtime` section adds the alerts notified and the runtime issues opened and closed. An alert still never changes an admission decision and never stops a pod. New channels do not subscribe to `runtime_alert` until you tick it.
+
 ## 1.1.0 — 2026-09-10
 
 **Changed — upgrading from 1.0.2 applies migrations 0013 to 0020 on first start, and they move forward only.** `helm upgrade --reuse-values` works across the version: every value this release adds carries a chart default, so an upgrade that keeps your installed values takes those defaults. The chart also generates a `<release>-data-key` Secret on the upgrade and preserves it afterwards — add it to your backup set, because a tracker credential sealed under a key you no longer hold cannot be opened and its channel needs its token entered again. Rolling the chart back does not roll the schema back; that is a restore-from-backup exercise, as the upgrade page says.
