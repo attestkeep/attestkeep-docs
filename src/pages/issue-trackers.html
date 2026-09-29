@@ -16,7 +16,7 @@
 
 <p>An issue tracker is a <strong>notification channel</strong>, not a separate subsystem. It lives in the same table, the same editor and the same subscription rules as a Slack or Teams destination, and it subscribes to the same <code>critical_finding</code> event. Settings → Notifications → Add Channel → GitHub Issues / GitLab Issues / Jira.</p>
 
-<p>Subscribing a tracker channel to other events is allowed and does nothing: <code>critical_finding</code> is the only event that produces an issue.</p>
+<p>Subscribing a tracker channel to other events is allowed and does nothing: <code>critical_finding</code> and <code>runtime_alert</code> are the only events that produce an issue, and <code>runtime_alert</code> only at the Falco issue threshold (see <a href="#runtime-issues">runtime issues</a>).</p>
 
 <p><strong>Test</strong> on a tracker channel writes nothing at all. It issues a single read — a <code>GET</code> of the repository, project or Jira project — and reports whether the credential works. A "send a test message" button would file a junk ticket in your board every time somebody pressed it, so the console says instead: <em>Connection to … verified … Nothing was written.</em></p>
 
@@ -78,6 +78,10 @@
 <p>The unit of work is the <strong>issue</strong>, not the finding. Those are the same thing for an ordinary finding and are not for a first-run summary, which is one issue carrying a history row per CVE. So each finding is still judged on its own with its own reason; one comment per issue per sweep lists the findings that ended and the reason each ended for; and the issue is closed once, when the last finding on it ends. Until then it stays open and the comment says how many are still outstanding — closing an issue that still lists live critical findings would tell the team the work is done.</p>
 
 <p>A finding that was closed as <code>triaged</code> and comes back when the triage expires opens a <strong>new</strong> issue. That is a new decision, and the closed row stays as the history of the first.</p>
+
+<h2 id="runtime-issues">Runtime issues</h2>
+
+<p>A tracker channel subscribed to <code>runtime_alert</code> also opens an issue when your own Falco reports a rule at or above <code>integrations.falco.issuePriority</code> (<code>critical</code> by default) against an image digest: one issue per digest and rule, titled <code>RUNTIME: &lt;rule&gt; in &lt;image&gt;</code> and labelled <code>runtime</code> beside the channel's own labels. It carries the rule, priority, source, namespace, pod and container, node, event time, Falco's output line and how often the rule fired on that image in the last 7 days. The daily cap counts it like any other issue; there is no first-run summary. It closes as <code>quiet</code> (no event of that rule on that image for 7 days) or <code>image_retired</code>, never as <code>fixed</code> or <code>triaged</code>, and it is counted apart from the remediation figures in the evidence pack. Details are on <a href="/runtime-events/">runtime events</a>.</p>
 
 <h2>Configuration and the minimum permission</h2>
 

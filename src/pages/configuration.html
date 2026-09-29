@@ -71,6 +71,8 @@
     <tr><td><code>integrations.falco.existingSecret.name</code></td><td><code>""</code></td><td>Holds the bearer token the endpoint requires. Until it is set, <code>/api/v1/integrations/falco</code> answers <code>404</code> and the integration does not exist.</td></tr>
     <tr><td><code>integrations.falco.existingSecret.key</code></td><td><code>token</code></td><td></td></tr>
     <tr><td><code>integrations.falco.minPriority</code></td><td><code>warning</code></td><td>Events below this are accepted and discarded. Falco's ordering: <code>emergency</code>, <code>alert</code>, <code>critical</code>, <code>error</code>, <code>warning</code>, <code>notice</code>, <code>informational</code>, <code>debug</code>. Set the same floor on the sender — dropping an event here still costs the delivery.</td></tr>
+    <tr><td><code>integrations.falco.notifyPriority</code></td><td><code>error</code></td><td>At and above this, a stored event is sent to the channels subscribed to <code>runtime_alert</code> — once per rule and image per hour. See <a href="/runtime-events/">runtime events</a>.</td></tr>
+    <tr><td><code>integrations.falco.issuePriority</code></td><td><code>critical</code></td><td>At and above this, the issue tracker channels subscribed to <code>runtime_alert</code> open an issue for an event filed against an image digest.</td></tr>
   </tbody>
 </table>
 </div>

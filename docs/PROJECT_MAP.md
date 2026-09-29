@@ -32,9 +32,13 @@ attestkeep-docs/
 │       │                   geri alma, imza doğrulama
 │       ├── backup        — neyi yedekle (evidence-key ve data-key dahil), config export/import, restore'un kanıta etkisi
 │       ├── runtime-events — Falco/Falcosidekick webhook uçnoktası; admission kararını
-│       │                   değiştirmez, runtime tespiti kapsam dışı kalır
+│       │                   değiştirmez, runtime tespiti kapsam dışı kalır; alert
+│       │                   sonrası: notifyPriority/issuePriority eşikleri, kural+image
+│       │                   başına saatte bir bildirim, RUNTIME issue'su ve
+│       │                   quiet/image_retired kapanışı
 │       ├── issue-trackers — GitHub/GitLab/Jira kanalları: dedup, dailyCap, kapatma
-│       │                   nedenleri, data-key ile şifreli kimlik bilgisi
+│       │                   nedenleri, data-key ile şifreli kimlik bilgisi, runtime
+│       │                   issue'ları (#runtime-issues)
 │       ├── evidence-trust — ledger mühürleme modeli, tek erişimin yapamadığı, garantilerin bittiği yer
 │       ├── compliance    — eşlenen 13 çerçeve (293 madde), kanıt paketi içeriği,
 │       │                   iddia edilmeyenler ve çeviri şerhleri

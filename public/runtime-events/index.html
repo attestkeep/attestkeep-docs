@@ -127,7 +127,9 @@
     existingSecret:
       name: attestkeep-falco
       key: token
-    minPriority: warning</code></pre>
+    minPriority: warning
+    notifyPriority: error
+    issuePriority: critical</code></pre>
 
 <pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
   -n attestkeep -f values.yaml</code></pre>
@@ -195,9 +197,39 @@ WEBHOOK_MINIMUMPRIORITY=warning</code></pre>
 <p><strong>In the metrics.</strong></p>
 
 <pre><code>attestkeep_runtime_events_total{source, priority}
-attestkeep_runtime_events_dropped_total{reason="priority|duplicate|unresolved_image"}</code></pre>
+attestkeep_runtime_events_dropped_total{reason="priority|duplicate|unresolved_image|throttled"}
+attestkeep_runtime_alerts_notified_total</code></pre>
 
 <p><code>unresolved_image</code> is not a lost event. Falco watches the host as well as the containers on it, and an alert about a process in no container is stored unattributed — it appears in the evidence pack's runtime section with no image beside it.</p>
+
+<h2>What happens after an alert</h2>
+
+<p>A stored alert is also passed on, at two thresholds on the same Falco ordering as <code>minPriority</code>:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Value</th><th>Default</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>integrations.falco.notifyPriority</code></td><td><code>error</code></td><td>At and above it, the alert is sent to every notification channel subscribed to the <code>runtime_alert</code> event.</td></tr>
+    <tr><td><code>integrations.falco.issuePriority</code></td><td><code>critical</code></td><td>At and above it, the issue tracker channels (GitHub, GitLab, Jira) subscribed to <code>runtime_alert</code> also open an issue.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p><strong>One notification per rule and image per hour.</strong> A second event of the same rule on the same image inside the hour is stored and shown as usual, and not sent again; it is counted as <code>dropped_total{reason="throttled"}</code>. An alert with no image is throttled per namespace and pod instead. A redelivery is never sent at all. The message is titled <code>Runtime alert: &lt;rule&gt;</code> and carries Falco's own output line.</p>
+
+<p><strong>Issues</strong> are opened only for an alert filed against an image digest: one issue per digest and rule, titled <code>RUNTIME: &lt;rule&gt; in &lt;image&gt;</code> and labelled <code>runtime</code>. The same rule firing again on the same image does not open a second one. An issue closes for one of two reasons, and the closing comment says which:</p>
+
+<ul>
+  <li><code>quiet</code> — no event of that rule on that image for 7 days;</li>
+  <li><code>image_retired</code> — no pod has run that image digest for 24 hours.</li>
+</ul>
+
+<p>Neither is a fix: the behaviour was reported, not removed. If it recurs after a <code>quiet</code> close, a new issue is opened. See <a href="/issue-trackers/">issue trackers</a> for the channel itself.</p>
+
+<p><strong>An alert still never changes an admission decision and never stops a pod.</strong> The notification and the issue are reports.</p>
+
+<p>The evidence pack's <code>runtime</code> section also reports how many alerts were notified in the period and how many runtime issues were opened and closed.</p>
 
 <h2>How an alert finds its image</h2>
 
