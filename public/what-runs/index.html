@@ -108,7 +108,7 @@
 <table>
   <thead><tr><th>Object</th><th>Default</th><th>What it does</th></tr></thead>
   <tbody>
-    <tr><td>Deployment <code>attestkeep</code></td><td>2 replicas, anti-affinity preferred across nodes, PDB <code>minAvailable: 1</code></td><td>The operator: admission webhook (8443), console and API (8080), metrics (9090). Controller work is serialised through a PostgreSQL advisory lock, so replicas scale without a leader-election lease.</td></tr>
+    <tr><td>Deployment <code>attestkeep</code></td><td>2 replicas, anti-affinity preferred across nodes, PDB <code>minAvailable: 1</code></td><td>The operator: admission webhook (8443), console and API (8080), metrics (9090), and the Falco integrations listener (8444) only when <code>integrations.falco.enabled</code> is on. Controller work is serialised through a PostgreSQL advisory lock, so replicas scale without a leader-election lease.</td></tr>
     <tr><td>Deployment <code>attestkeep-scanner</code></td><td>1 replica</td><td>Runs Trivy scans and cosign verification off the admission path. Never receives admission traffic.</td></tr>
     <tr><td>StatefulSet <code>attestkeep-postgresql</code></td><td>1 replica, 20&nbsp;GiB, <code>postgres:16.4-alpine</code></td><td>The bundled database. Renders only when you have not set <code>externalDsn</code> — point that at your own PostgreSQL and this object does not exist.</td></tr>
   </tbody>
@@ -137,7 +137,7 @@
     <tr><td><code>secrets</code>: <strong>get only — deliberately not list</strong></td><td>Cluster</td><td>Registry credentials. The operator can read a pull secret whose name it learned from a pod specification; it cannot enumerate what a namespace holds. Credentials are used at scan time and never stored.</td></tr>
     <tr><td><code>pods/eviction</code>: create</td><td>Cluster, <strong>only if <code>rbac.allowEnforce: true</code></strong> (default false)</td><td>Runtime enforcement is armed with two keys: the policy chooses <code>enforce</code> mode and the chart grants the permission. A compromised operator on an audit-only install has nothing to evict with. Eviction, not delete, so PodDisruptionBudgets are honoured.</td></tr>
     <tr><td><code>validatingwebhookconfigurations</code>: update</td><td>Cluster, restricted by <code>resourceNames</code> to its own configuration</td><td>Publishing and rotating its own CA bundle. It cannot touch any other webhook in the cluster.</td></tr>
-    <tr><td><code>secrets</code>: write</td><td>Namespace, restricted by <code>resourceNames</code> to <code>attestkeep-webhook-tls</code> and <code>attestkeep-evidence-key</code></td><td>The serving certificate and the evidence signing key. The operator creates and rotates exactly these two Secrets in its own namespace. There is no <code>delete</code> verb on Secrets anywhere in the role set.</td></tr>
+    <tr><td><code>secrets</code>: write</td><td>Namespace, restricted by <code>resourceNames</code> to <code>attestkeep-webhook-tls</code>, <code>attestkeep-evidence-key</code> and <code>attestkeep-falco-mtls</code></td><td>The serving certificate, the evidence signing key, and the Falco client CA with the certificate issued from it. The operator creates and rotates exactly these three Secrets in its own namespace; the last exists only once the Falco integration is on. There is no <code>delete</code> verb on Secrets anywhere in the role set.</td></tr>
   </tbody>
 </table>
 </div>

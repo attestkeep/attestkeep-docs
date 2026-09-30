@@ -112,7 +112,7 @@
 
 <p>An issue tracker is a <strong>notification channel</strong>, not a separate subsystem. It lives in the same table, the same editor and the same subscription rules as a Slack or Teams destination, and it subscribes to the same <code>critical_finding</code> event. Settings → Notifications → Add Channel → GitHub Issues / GitLab Issues / Jira.</p>
 
-<p>Subscribing a tracker channel to other events is allowed and does nothing: <code>critical_finding</code> and <code>runtime_alert</code> are the only events that produce an issue, and <code>runtime_alert</code> only at the Falco issue threshold (see <a href="#runtime-issues">runtime issues</a>).</p>
+<p>Subscribing a tracker channel to other events is allowed and does nothing: <code>critical_finding</code> and <code>runtime_alert</code> are the only events that produce an issue, and <code>runtime_alert</code> only when a runtime rule asks for an issue (see <a href="#runtime-issues">runtime issues</a>).</p>
 
 <p><strong>Test</strong> on a tracker channel writes nothing at all. It issues a single read — a <code>GET</code> of the repository, project or Jira project — and reports whether the credential works. A "send a test message" button would file a junk ticket in your board every time somebody pressed it, so the console says instead: <em>Connection to … verified … Nothing was written.</em></p>
 
@@ -177,7 +177,7 @@
 
 <h2 id="runtime-issues">Runtime issues</h2>
 
-<p>A tracker channel subscribed to <code>runtime_alert</code> also opens an issue when your own Falco reports a rule at or above <code>integrations.falco.issuePriority</code> (<code>critical</code> by default) against an image digest: one issue per digest and rule, titled <code>RUNTIME: &lt;rule&gt; in &lt;image&gt;</code> and labelled <code>runtime</code> beside the channel's own labels. It carries the rule, priority, source, namespace, pod and container, node, event time, Falco's output line and how often the rule fired on that image in the last 7 days. The daily cap counts it like any other issue; there is no first-run summary. It closes as <code>quiet</code> (no event of that rule on that image for 7 days) or <code>image_retired</code>, never as <code>fixed</code> or <code>triaged</code>, and it is counted apart from the remediation figures in the evidence pack. Details are on <a href="/runtime-events/">runtime events</a>.</p>
+<p>A tracker channel subscribed to <code>runtime_alert</code> also opens an issue when a <a href="/runtime-events/">runtime rule</a> with an issue, or a <code>block</code> rule, acts on an event your own Falco filed against an image digest: one issue per digest and rule, titled <code>RUNTIME: &lt;rule&gt; in &lt;image&gt;</code> and labelled <code>runtime</code> beside the channel's own labels. It carries the rule, priority, source, namespace, pod and container, node, event time, Falco's output line and how often the rule fired on that image in the last 7 days. The daily cap counts it like any other issue; there is no first-run summary. It closes as <code>quiet</code> (no event of that rule on that image for 7 days), <code>image_retired</code> or <code>released</code> (its runtime block was released by triage), never as <code>fixed</code> or <code>triaged</code>, and it is counted apart from the remediation figures in the evidence pack. Details are on <a href="/runtime-events/">runtime events</a>.</p>
 
 <h2>Configuration and the minimum permission</h2>
 

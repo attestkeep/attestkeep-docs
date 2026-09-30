@@ -34,9 +34,9 @@ helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
 
 <p>"Unsigned" and "could not be verified" have the same effect on the verdict — under a policy that requires signatures both refuse — but they are different failures, and the operator says which one happened in its logs and metrics so a broken verification path does not pass for a deliberate decision not to sign.</p>
 
-<h2>Licensing needs one route out</h2>
+<h2>Licensing: one route out, or an offline certificate</h2>
 
-<p>There is no offline licence format and no setting that turns the check off. What licensing needs is narrow enough to put through a proxy with a single allowed destination:</p>
+<p>Online licensing has no setting that turns the daily check off. What it needs is narrow enough to put through a proxy with a single allowed destination:</p>
 
 <div class="table-wrap">
 <table>
@@ -50,4 +50,6 @@ helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
 </table>
 </div>
 
-<p>Community works the same way. A cluster with permanently no route at all is the one case this product cannot license, and saying so plainly is better than selling into it and disappointing later.</p>
+<p>Community works the same way.</p>
+
+<p>A cluster with no route at all is activated offline instead. The console writes an activation request naming the cluster, somebody carries it to the licence page at attestkeep.com, and the certificate issued there for that cluster is uploaded back in the console — or handed to the operator through <code>license.existingCertificateSecret</code> for an installation nobody will open the console of. No daily check runs against it, and the console warns thirty days before it expires. Whether offline activation is offered for your licence is shown on the licence page at attestkeep.com; the steps are on <a href="/licensing/#offline-activation">licensing</a>.</p>

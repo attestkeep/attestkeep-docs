@@ -116,6 +116,20 @@
 
 <p>Each migration is recorded when it runs, so it runs exactly once no matter how many replicas start at the same time. Findings, decisions, exceptions and evidence survive the upgrade; nothing is rebuilt from scratch.</p>
 
+<h2>1.1.x to 1.2.0</h2>
+
+<p>Migrations <code>0021</code> to <code>0024</code> are applied on the first start of the new version. They move forward only: the database cannot be taken back to a 1.1.x schema by a Helm rollback, so a return to 1.1.x is a restore from backup, not a <code>helm rollback</code>.</p>
+
+<p><code>helm upgrade --reuse-values</code> works across this version. The values 1.2.0 adds are read with their defaults when an upgrade carries the previous release's values forward — the Falco integration off, <code>integrations.port</code> <code>8444</code>, and stored runtime events kept for 90 days.</p>
+
+<ul>
+  <li><strong>If Falco sends you events through Falcosidekick with a bearer token, they stop on upgrade.</strong> That endpoint is gone; <code>integrations.falco.existingSecret</code> and <code>integrations.falco.minPriority</code> are no longer read. Connect Falco's own <code>http_output</code> over mutual TLS as <a href="/runtime-events/">runtime events</a> describes, then delete the old token Secret.</li>
+  <li>Deleting a user now disables the account rather than removing it. Accounts deleted before the upgrade are already gone; nothing is restored.</li>
+  <li>Evidence packages generated after the upgrade name accounts as <code>user:&lt;account id&gt;</code>; packages generated before it keep what they were signed with. See <a href="/compliance/">compliance frameworks</a>.</li>
+</ul>
+
+<p>Nothing about an installed policy or licence changes. <code>runtime.enforceBlocks</code> defaults to <code>false</code>, so no runtime block refuses a pod until a policy says so.</p>
+
 <h2>1.0.2 to 1.1.0</h2>
 
 <p>Migrations <code>0013</code> to <code>0020</code> are applied on the first start of the new version. They move forward only: the database cannot be taken back to a 1.0.2 schema by a Helm rollback, so a return to 1.0.2 is a restore from backup, not a <code>helm rollback</code>.</p>

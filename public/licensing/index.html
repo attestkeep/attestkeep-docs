@@ -164,9 +164,19 @@ docker.io/library/postgres:16  ─┴─ one image against the quota</code></pre
 
 <h3>Being unreachable is not being denied</h3>
 
-<p>If the licence service cannot be reached, the installation keeps running on the certificate it already holds, for that certificate's remaining term. Only a cluster with permanently no route at all cannot hold a paid licence.</p>
+<p>If the licence service cannot be reached, the installation keeps running on the certificate it already holds, for that certificate's remaining term. A cluster that will never have a route out takes the <a href="#offline-activation">offline path</a> instead.</p>
 
-<p>A <code>revoked</code> or <code>released</code> answer applies at the next check. There is no offline licence format and no setting that turns the check off — that is a deliberate limit, and the only thing in the product that needs a route out.</p>
+<p>A <code>revoked</code> or <code>released</code> answer applies at the next check. An online licence has no setting that turns the check off.</p>
+
+<h3 id="offline-activation">Offline activation</h3>
+
+<p>A cluster that will never reach the licence service is activated with a certificate instead of a key. The console's activation screen, and its <strong>Usage and Licence</strong> page, have a second tab for this. It downloads an activation request naming this cluster — its fingerprint, the operator's public key, the cluster name and the version, and nothing else. Somebody carries that file to the licence page at attestkeep.com on a machine that has internet; the page issues a certificate for that cluster alone, and it is uploaded back on the same tab.</p>
+
+<p>It is the same signed document the online path stores, marked as offline. The operator verifies the signature, the cluster fingerprint and its own key before storing it, runs no daily check for it, and warns thirty days before it expires. A certificate issued for another cluster or another key, or one that has expired, is refused, and the refusal says which.</p>
+
+<p>For an installation nobody will open the console of, the Helm value <code>license.existingCertificateSecret</code> names a Secret holding the same certificate under the key <code>certificate</code>. The operator installs it at start only when it holds no certificate or this one runs later than the one it holds, so a Secret left behind after a renewal in the console is ignored rather than put back on every restart.</p>
+
+<p>Whether offline activation is offered for your licence is shown on the licence page at attestkeep.com.</p>
 
 <figure class="shot">
   <img src="/img/manual/13-usage-license.png" alt="The Usage and Licence page: edition and status, image band, cluster count, activation and subscription dates, and the certificate's own expiry with days remaining, above a Community-versus-Enterprise capability table." loading="lazy" />
@@ -178,6 +188,8 @@ docker.io/library/postgres:16  ─┴─ one image against the quota</code></pre
 <p>Each activation holds a slot until it is released. You release one yourself, from <a href="https://attestkeep.com/app/licenses">your licences page</a> — deleting a cluster should not mean opening a support ticket to reuse the slot you paid for.</p>
 
 <p>A released slot is free immediately, and the installation that was holding it drops out at its next daily check.</p>
+
+<p>The console can hand a licence back too: <strong>Deactivate</strong> on the Usage and Licence page, behind a confirmation. On the online path it gives the cluster's slot back. On the offline path it deletes the certificate from the cluster and leaves the slot for Attestkeep support to release, because an offline cluster never calls back to say it is done.</p>
 
 <p>Reinstalling into the same cluster does not spend a second slot: the fingerprint is the same, so the existing slot is handed back. If you have run out, the error names the clusters that are holding your slots and when each one activated, so you can decide which to release rather than guess.</p>
 

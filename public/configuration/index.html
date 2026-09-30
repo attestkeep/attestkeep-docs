@@ -145,7 +145,8 @@
     <tr><td><code>scan.rescanInterval</code></td><td><code>24h</code></td><td>How often a known digest is re-evaluated against a refreshed database.</td></tr>
     <tr><td><code>scan.insecureRegistries</code></td><td><code>[]</code></td><td>Registries served over plain HTTP. Must be named — silently downgrading a connection is not a decision a security tool makes for you.</td></tr>
     <tr><td><code>scan.cosignOffline</code></td><td><code>false</code></td><td>Verify against the key and skip the transparency log. See <a href="/air-gapped/">air-gapped</a> for what that costs.</td></tr>
-    <tr><td><code>kev.source</code></td><td>CISA's catalogue URL</td><td>Where the Known Exploited Vulnerabilities catalogue is fetched from, on the same six-hour cadence as the vulnerability database. A path or a <code>file://</code> URL reads a mirror inside the perimeter instead — the catalogue is a few megabytes of JSON, so whatever already carries files into your cluster can carry this one. An empty string refreshes nothing: the stored catalogue stays exactly as it is and findings keep being marked against it. What admission does about a marked finding is the policy's choice: <a href="/policies/"><code>spec.knownExploited</code></a>.</td></tr>
+    <tr><td><code>kev.source</code></td><td>CISA's catalogue URL</td><td>Where the Known Exploited Vulnerabilities catalogue is fetched from, on the same six-hour cadence as the vulnerability database. A path or a <code>file://</code> URL reads a mirror inside the perimeter instead; <code>kev.existingConfigMap</code> below mounts one. An empty string refreshes nothing: the stored catalogue stays exactly as it is and findings keep being marked against it. What admission does about a marked finding is the policy's choice: <a href="/policies/"><code>spec.knownExploited</code></a>.</td></tr>
+    <tr><td><code>kev.existingConfigMap</code></td><td><code>""</code></td><td>The name of a ConfigMap in the release namespace holding a mirrored copy of the catalogue, mounted read-only at <code>/etc/kev</code> on the scanner. The copy has to be gzipped: a ConfigMap holds at most 1 MiB and the published catalogue is 1.7 MB, which the API server refuses outright; gzipped it is under 200 KB. Point <code>kev.source</code> at <code>file:///etc/kev/&lt;key&gt;</code>, the key being the name of the file the ConfigMap was created from — <code>gzip -k known_exploited_vulnerabilities.json</code> and <code>kubectl -n attestkeep create configmap kev-catalog --from-file=known_exploited_vulnerabilities.json.gz</code> is read as <code>file:///etc/kev/known_exploited_vulnerabilities.json.gz</code>. The scanner decides whether a file is compressed by its first two bytes, not its name. Empty mounts nothing.</td></tr>
     <tr><td><code>reconcile.interval</code></td><td><code>1h</code></td><td>How often what is actually running — each container's observed <code>imageID</code> — is reconciled against the admission ledger, catching workloads that entered before the install, during an outage, or under <code>failurePolicy: Ignore</code>. <code>0</code> disables the sweep. What a finding does is the policy's choice: <a href="/policies/"><code>spec.runtimeReconciliation</code></a>.</td></tr>
     <tr><td><code>rbac.allowEnforce</code></td><td><code>false</code></td><td>Whether the operator may evict pods at all. Enforcement is armed with two keys: the policy chooses <code>enforce</code>, this grants the <code>pods/eviction</code> permission it needs. An audit-only install carries no eviction right.</td></tr>
   </tbody>
@@ -158,17 +159,28 @@
 
 <h2>Runtime events (Falco)</h2>
 
-<p>Attestkeep does not ship, install or run Falco. These two values accept the alerts your own Falco already sends through Falcosidekick's generic webhook output and file them against the image that produced them. Nothing that arrives here changes an admission decision. The sender's side, the response codes and what the events then do are on <a href="/runtime-events/">Runtime events</a>.</p>
+<p>Attestkeep does not ship, install or run Falco. Your own Falco sends its alerts straight to the operator from its <code>http_output</code>, over mutual TLS: the operator issues Falco a client certificate and accepts events only from it. An event changes an admission decision only through a runtime block, and only under a policy with <code>runtime.enforceBlocks: true</code> (default <code>false</code>). The Falco side, the certificates and what the events then do are on <a href="/runtime-events/">Runtime events</a>.</p>
 
 <div class="table-wrap">
 <table>
   <thead><tr><th>Value</th><th>Default</th><th>What it does</th></tr></thead>
   <tbody>
-    <tr><td><code>integrations.falco.existingSecret.name</code></td><td><code>""</code></td><td>Holds the bearer token the endpoint requires. Until it is set, <code>/api/v1/integrations/falco</code> answers <code>404</code> and the integration does not exist.</td></tr>
-    <tr><td><code>integrations.falco.existingSecret.key</code></td><td><code>token</code></td><td></td></tr>
-    <tr><td><code>integrations.falco.minPriority</code></td><td><code>warning</code></td><td>Events below this are accepted and discarded. Falco's ordering: <code>emergency</code>, <code>alert</code>, <code>critical</code>, <code>error</code>, <code>warning</code>, <code>notice</code>, <code>informational</code>, <code>debug</code>. Set the same floor on the sender — dropping an event here still costs the delivery.</td></tr>
-    <tr><td><code>integrations.falco.notifyPriority</code></td><td><code>error</code></td><td>At and above this, a stored event is sent to the channels subscribed to <code>runtime_alert</code> — once per rule and image per hour. See <a href="/runtime-events/">runtime events</a>.</td></tr>
-    <tr><td><code>integrations.falco.issuePriority</code></td><td><code>critical</code></td><td>At and above this, the issue tracker channels subscribed to <code>runtime_alert</code> open an issue for an event filed against an image digest.</td></tr>
+    <tr><td><code>integrations.falco.enabled</code></td><td><code>false</code></td><td>Turns the integration on: the integrations listener, the Falco client CA and client certificate (Secret <code>&lt;release&gt;-falco-mtls</code>), and the console's Falco section. Off, there is no listener and no CA.</td></tr>
+    <tr><td><code>integrations.port</code></td><td><code>8444</code></td><td>The TLS port Falco posts to, on the pod and the Service. It requires a client certificate from the Falco CA and serves only <code>POST /api/v1/integrations/falco</code>. Only used when the integration is on.</td></tr>
+    <tr><td><code>runtime.retentionDays</code></td><td><code>90</code></td><td>Every event is stored; stored events older than this are removed hourly. Only events — issue history, audit entries and rule revisions stay. <code>0</code> keeps them.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>What an event leads to is not a chart value: it is decided by the runtime rules written in the console's Falco section. <code>integrations.falco.existingSecret</code> and <code>integrations.falco.minPriority</code> from earlier releases are no longer read.</p>
+
+<h2>Licence</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Value</th><th>Default</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>license.existingCertificateSecret</code></td><td><code>""</code></td><td>Name of a Secret holding an offline certificate under the key <code>certificate</code>, for installs that never open the console. The operator reads it at start and activates from it if it holds no certificate, or if this one runs later than the one it holds, so a Secret left behind after a console renewal is ignored. The certificate comes from the licence page at attestkeep.com, issued against an activation request this cluster produced, so it is valid for this cluster and no other. Empty everywhere else: activation is a console screen, not a chart value. See <a href="/licensing/#offline-activation">offline activation</a>.</td></tr>
   </tbody>
 </table>
 </div>

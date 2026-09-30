@@ -18,9 +18,96 @@
   <li>the population, reconciled: every running container's observed <code>imageID</code> checked against the admission ledger, so the document can say not only "the control decided N times" but "and here is what is running that it never decided on" — workloads that predate the install, entered during a gap, or slipped through under <code>failurePolicy: Ignore</code> are listed by name rather than left invisible.</li>
 </ul>
 
-<p>Depending on what the installation has switched on, the document also carries a <code>provenance</code> record for images whose build provenance was verified, a <code>vex</code> section listing the findings a trusted producer's statement suppressed and the words they used, a <code>runtime</code> section of the alerts your own detector delivered, an <code>issues</code> section of the tracker issues opened and closed for critical findings, and a <code>context</code> section saying whether admission escalated on where the pod was going to run.</p>
+<p>Depending on what the installation has switched on, the document also carries a <code>provenance</code> record for images whose build provenance was verified, a <code>vex</code> section listing the findings a trusted producer's statement suppressed and the words they used, a <code>runtime</code> section of the events your own Falco delivered and what your <a href="/runtime-events/">runtime rules</a> decided about them, an <code>issues</code> section of the tracker issues opened and closed for critical findings, and a <code>context</code> section saying whether admission escalated on where the pod was going to run.</p>
 
 <p>The allows matter as much as the denials. Evidence that only lists blocks can show that something was blocked; it cannot show that a control was operating.</p>
+
+<h2>Reading <code>report.json</code></h2>
+
+<p>Only <code>report.json</code>, and the PDF named beside it, is signed; the PDF renders the same data and never adds to it. A package keeps the shape it was generated with: one generated before a field existed does not have it, is never regenerated, and reads exactly as it did. Treat a missing field as "this package predates it", not as an error. The fields below arrived in 1.2.0.</p>
+
+<h3>Requirements: status, result, tests</h3>
+
+<p>Every entry of <code>framework.requirements[]</code> keeps <code>status</code> (<code>met</code>, <code>partial</code>, <code>gap</code>, <code>outside_scope</code>), <code>note</code> and <code>evidence[]</code>, and adds two fields in OSCAL's words, derived from <code>status</code>:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Field</th><th>Values</th><th>From <code>status</code></th></tr></thead>
+  <tbody>
+    <tr><td><code>result</code></td><td><code>satisfied</code>, <code>not-satisfied</code>, <code>not-applicable</code></td><td>met &rarr; satisfied; partial, gap &rarr; not-satisfied; outside_scope &rarr; not-applicable</td></tr>
+    <tr><td><code>implementation_status</code></td><td><code>implemented</code>, <code>partial</code>, <code>not-implemented</code>, <code>not-applicable</code></td><td>met &rarr; implemented; partial &rarr; partial; gap &rarr; not-implemented; outside_scope &rarr; not-applicable</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p><code>framework.summary</code> counts <code>satisfied</code>, <code>not_satisfied</code> and <code>not_applicable</code> beside the four status counts. <code>tests[]</code> lists what answered the requirement, one entry each:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>id</code>, <code>title</code></td><td>The attestation.</td></tr>
+    <tr><td><code>method</code></td><td><code>TEST</code> when it reads a record of what happened, <code>EXAMINE</code> when it reads a configuration.</td></tr>
+    <tr><td><code>result</code></td><td>The test's own result, in the words above.</td></tr>
+    <tr><td><code>observation</code></td><td>The attestation's note, with the period's numbers.</td></tr>
+    <tr><td><code>evidence[]</code></td><td><code>{path, type}</code>: a path into this report and its evidence type — <code>Report</code>, <code>Configuration</code>, <code>Audit Record</code> or <code>Log</code>.</td></tr>
+    <tr><td><code>source</code></td><td>Where it was read from: scan records, the admission ledger, the audit log, triage records, issue history, runtime events, availability records, the reconciliation sweep, policy or installation configuration, or the scope of this document.</td></tr>
+    <tr><td><code>collected_at</code></td><td>When that source was read: the newest scan for scan records, the closing sweep for the reconciliation sweep, the generation time for everything read live. Empty when there is no such moment; never invented.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Every requirement carries at least one test. The SOC 2 and EU CRA/NIS2 requirements are written as their own assessments and each is its own test. An outside-scope requirement carries one <code>EXAMINE</code> test, <code>not-applicable</code>, with the reason as its observation; a clause with a limb no record speaks to carries that limb as one more <code>EXAMINE</code> test, <code>not-satisfied</code>, because it is what holds the clause below met. The PDF prints the tests beneath each requirement.</p>
+
+<h3>The admission population</h3>
+
+<p><code>admission.records[]</code> is every admission review of the period, one row each: <code>at</code>, <code>namespace</code>, <code>pod</code>, <code>image</code>, <code>digest</code>, <code>allowed</code>, <code>reason</code>, <code>policy_name</code>, <code>policy_hash</code>, <code>break_glass</code>, <code>cached</code>, <code>requester</code>. There is no cap — a population that stops at a limit is a sample — and <code>admission.records_truncated</code> is always <code>false</code>. The grouped denials and the <code>chain[]</code> DEPLOY rows stay as the readable summary; <code>records</code> is what a sample is drawn from. The PDF prints how many rows there are and where they are, not the rows.</p>
+
+<h3>How the document was produced</h3>
+
+<p><code>generation</code> states when and by what the document was generated (<code>generated_at</code>, <code>generator</code>), the <code>source_system</code>, the query <code>period</code> — end exclusive, <code>timezone: UTC</code> — and <code>queries[]</code>: for each section, the query behind it in words and the number of rows it returned. The two capped queries say whether they hit their cap: <code>runtime.decisions</code> at 500 and, when asked for, <code>runtime.raw_events</code> at 5000. <code>actors</code> gives the actor scheme and <code>unresolved_rows</code>, described below.</p>
+
+<h3>Runtime clocks</h3>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Where</th><th>Falco's clock</th><th>Operator's clock</th></tr></thead>
+  <tbody>
+    <tr><td><code>runtime.decisions[]</code></td><td><code>event_time</code></td><td><code>received_at</code></td></tr>
+    <tr><td><code>runtime.raw_events[]</code></td><td><code>event_time</code></td><td><code>received_at</code></td></tr>
+    <tr><td><code>runtime.blocks[]</code></td><td><code>first_event_at</code>, <code>last_event_at</code></td><td><code>opened_at</code>, <code>released_at</code></td></tr>
+    <tr><td><code>runtime.coverage</code></td><td>—</td><td><code>last_event_at</code>, <code>longest_silence_seconds</code>, <code>silence_measured_from</code>; <code>clock</code> says so</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p><code>event_time</code> is the <code>time</code> field of the Falco event, and the one to argue from when a row is compared with the detector's own log. Coverage measures the feed reaching the operator, which only the operator's clock can show. The rule changes, triage releases and integration changes of the period are in <code>runtime.audit_entries[]</code>, each with its <code>kind</code>.</p>
+
+<h3>Operator declarations</h3>
+
+<p><code>organisation.declarations</code> carries <code>time_source</code> and <code>retention_policy</code>, the operator's own statements entered under Settings &gt; Organisation &gt; Operator declarations. The product does not measure clock synchronisation or enforce a retention period, and the PDF labels both lines "declared by the operator". Empty when nothing was declared. No framework clause reads them.</p>
+
+<h2>Personal data in evidence packages</h2>
+
+<p>An evidence package leaves the operator's hands. From 1.2.0 it names accounts, never people.</p>
+
+<p><strong>Console accounts are written by id.</strong> Every person field is <code>user:&lt;account id&gt;</code>: the predicate's <code>generated_by</code> (and so the README's "Generated … by" line), <code>chain[].actor</code> for audit-log rows, <code>triage[].triaged_by</code>, <code>runtime.audit_entries[].actor</code> and <code>runtime.blocks[].released_by</code>. The console's audit log still shows names: it is the operator's own record, and it is where the operator resolves an id to a person when an auditor asks. <code>system</code> (a sweep) and <code>anonymous</code> (a request with no session) are not people and are written as they are.</p>
+
+<p>Rows recorded before 1.2.0 hold only a name. At generation such a row is matched, by exact display name or by e-mail without case, against today's accounts, disabled ones included; if exactly one account matches, the row is written as that account's id. Otherwise it is written <code>user:unresolved</code> and counted in <code>generation.actors.unresolved_rows</code>, and the README says how many. Nothing is guessed, and the stored rows are not back-filled.</p>
+
+<p><strong>Accounts are disabled, not deleted.</strong> Deleting a user disables the account: it cannot sign in, its sessions end, and its id and name stay, so every <code>user:&lt;id&gt;</code> in an issued package still resolves. For an erasure request an administrator can then <strong>Anonymise</strong> the disabled account. In one transaction that blanks its name, e-mail and avatar and rewrites every copy of its name in the audit log, triage decisions, runtime block releases, and runtime rules and their revisions to <code>user:&lt;id&gt;</code>. Where another account bears the same display name, a row matched by name alone could be either person's and is left as it is. The response and the audit entry state how many rows were rewritten and how many were left. The rows themselves stay: an erasure request does not delete the security log, it stops it naming the person. Packages signed before the anonymisation keep what they were signed with, and comments already posted to an external issue tracker are not rewritten.</p>
+
+<p><strong>The cluster copy of a triage decision names the account.</strong> The <code>triagedBy</code> of an <code>ImageSecurityReport</code> triage entry is <code>user:&lt;account id&gt;</code>: the report is a cluster object that no anonymisation reaches, so no name is written there. Entries written before 1.2.0 hold a display name and are not patched; an entry written by the kubectl plugin leaves the field empty.</p>
+
+<p><strong>Kubernetes identities are pseudonymised.</strong> <code>admission.records[].requester</code> is written as the API server gave it when it is a <code>system:</code> identity — service accounts, controllers. Any other username, an OIDC e-mail or a certificate CN, is a person, and is written <code>k8s-user:&lt;first 16 hex characters of the SHA-256 of the username&gt;</code>. The raw username stays in the admission ledger, where the operator resolves the pseudonym on request.</p>
+
+<p><strong>Free text is not rewritten.</strong> Break-glass approvers, triage justifications, block release notes and audit-log details go into the package as they were typed. The console asks for a ticket or a role rather than a person's name under each of those fields; what is typed there is the operator's choice.</p>
+
+<p><strong>Deliveries name the package, not the recipient.</strong> Delivering or e-mailing a package from the console writes an audit entry whose target is the package; the recipient's address goes only into the entry's detail, which packages do not copy. Entries written before 1.2.0 carried the address as their target, and a package covering that period still shows it in <code>chain[]</code>.</p>
+
+<p><strong>Contact fields are the organisation's.</strong> <code>organisation.contact_email</code> and <code>security_contact</code> are there because the Cyber Resilience Act asks for a reachable contact. Use a role mailbox, not a person's address.</p>
+
+<p><strong>Old packages are unchanged.</strong> A package generated before 1.2.0 was signed with names in it and keeps them.</p>
 
 <h2>Mapped frameworks</h2>
 
