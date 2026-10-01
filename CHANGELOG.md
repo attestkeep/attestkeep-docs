@@ -17,7 +17,7 @@ curl -sO https://docs.attestkeep.com/cosign.pub
 cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.5
 ```
 
-## 1.3.0 — unreleased
+## 1.3.0 — 2026-10-01
 
 **Changed — activation now requires a certificate that carries the node ceiling; re-activate with a key issued by licence service 1.3.0 or later.** A 1.3.0 operator refuses, at online and at offline activation, a certificate without the node ceiling, with "re-activate with a key issued by licence service 1.3.0 or later".
 
