@@ -17,6 +17,24 @@ curl -sO https://docs.attestkeep.com/cosign.pub
 cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.5
 ```
 
+## 1.3.0 — unreleased
+
+**Changed — activation now requires a certificate that carries the node ceiling; re-activate with a key issued by licence service 1.3.0 or later.** A 1.3.0 operator refuses, at online and at offline activation, a certificate without the node ceiling, with "re-activate with a key issued by licence service 1.3.0 or later".
+
+**Changed — upgrading from 1.2.x applies migration 0025 on first start, and it moves forward only.** `helm upgrade --reuse-values` works across the version: `nodes.pollInterval` and `nodes.graceDays` are read with their chart defaults, `5m` and `14`, when an upgrade carries the previous release's values forward. Rolling the chart back does not roll the schema back; a return to 1.2.x is a restore from backup, as the upgrade page says.
+
+**Changed — the licence page shows nodes per cluster.** Its hint no longer says a licensed cluster may run any number of nodes: the licence states how many clusters it covers and how many Ready nodes each of them may have.
+
+**Added — a node ceiling per cluster, from the plan, with a 14-day grace.** The operator counts the cluster's Ready nodes every `nodes.pollInterval` (`5m`) and compares the count with the ceiling in the certificate; the count never leaves the cluster, and the daily check still sends the same three values. Going over stops nothing. If the cluster is still over after `nodes.graceDays` (`14`), image names never seen this period are denied at admission with "node ceiling of N exceeded", and a denied name is not counted; everything already counted keeps running and keeps being enforced. Coming back within the ceiling clears the clock at once, and a poll that cannot count changes nothing. Neither value loosens the ceiling.
+
+**Added — the dashboard shows Nodes n / m and, while the cluster is over its ceiling, a strip with the date new image names will be denied from.** Once that date has passed, the strip says enforcement is on.
+
+**Added — four notification events: `nodes_80`, `nodes_over`, `nodes_enforced` and `nodes_cleared`.** `nodes_80` fires at 80 percent of the ceiling, `nodes_over` when the cluster goes over (with the date enforcement starts), `nodes_enforced` when the grace period ends with the cluster still over, and `nodes_cleared` when it is back within. Each transition notifies once. A new channel has `nodes_over` and `nodes_enforced` ticked; the other two are opt-in.
+
+**Added — new metric series.** `attestkeep_nodes{kind="count"|"ceiling"}` (`-1` = no ceiling) and `attestkeep_node_overage_seconds`, how long the cluster has been over its ceiling, 0 while within. Node denials count under `reason="quota"` on `attestkeep_admission_denials_total`.
+
+**Added — an evidence package's `generation` block carries `nodes {count, ceiling}`.** The cluster's Ready nodes as the operator last counted them at generation and the licence's node ceiling (`-1` = none), numbers only; `count` is `null` when no count had been taken.
+
 ## 1.2.0 — 2026-09-30
 
 **Changed — upgrading from 1.1.x applies migrations 0021 to 0024 on first start, and they move forward only.** `helm upgrade --reuse-values` works across the version: the values 1.2.0 adds are read with their chart defaults when an upgrade carries the previous release's values forward, so the Falco integration stays off until you turn it on and stored runtime events are kept for 90 days. Rolling the chart back does not roll the schema back; a return to 1.1.x is a restore from backup, as the upgrade page says.

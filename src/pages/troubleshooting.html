@@ -12,11 +12,12 @@ kubectl -n attestkeep logs deploy/attestkeep-scanner --tail=200</code></pre>
 
 <h2>Deployments are being denied and I do not know why</h2>
 
-<p>Every denial carries a reason, and the console lists them with the policy that produced each one. The three common causes:</p>
+<p>Every denial carries a reason, and the console lists them with the policy that produced each one. The four common causes:</p>
 
 <ul>
   <li><strong>The digest has never been scanned</strong> and <code>coldImagePolicy</code> denies unknown images. Wait for the scan or change the setting.</li>
   <li><strong>The monthly image quota is exhausted.</strong> Only <em>new</em> image names are denied; everything already counted keeps working. The licences page shows where you are.</li>
+  <li><strong>The reason reads "node ceiling of N exceeded".</strong> The cluster has had more Ready nodes than its licence allows for longer than the 14-day grace, so image names not yet seen this period are denied; everything already counted keeps running. There are two ways out: bring the cluster back to N nodes or fewer, or raise the ceiling — buy more nodes in your account, or under your agreement. Either one clears the clock at once. See <a href="/licensing/#node-ceiling">the node ceiling</a>.</li>
   <li><strong>The policy is doing its job.</strong> The reason names the severity or the missing signature. If it should be allowed, make an exception with an owner and an expiry rather than widening the policy.</li>
 </ul>
 
@@ -34,6 +35,7 @@ kubectl -n attestkeep logs deploy/attestkeep-scanner --tail=200</code></pre>
   <tbody>
     <tr><td>Invalid activation key</td><td>The key does not match a licence. Copy it again from the panel; the alphabet deliberately excludes the characters that get misread.</td></tr>
     <tr><td>Cluster quota exceeded</td><td>Every slot is in use. The error names the clusters holding them and when each activated — release one from the panel.</td></tr>
+    <tr><td>Certificate carries no node ceiling</td><td>The certificate was issued by a licence service older than 1.3.0, and a 1.3.0 operator needs the node ceiling in it. Re-activate with a key issued by licence service 1.3.0 or later.</td></tr>
     <tr><td>Licence revoked or expired</td><td>Check the licences page. A revoked licence applies at the next daily check rather than instantly.</td></tr>
     <tr><td>Cannot reach the licence service</td><td>Allow <code>lic.attestkeep.com</code> on port 443. See <a href="/air-gapped/">air-gapped</a>.</td></tr>
   </tbody>

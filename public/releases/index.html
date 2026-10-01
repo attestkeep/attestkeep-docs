@@ -124,6 +124,30 @@ cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.3.5 \
 
 <p>Always verify the digest, not the tag: a tag can be moved to different content after it was signed, a digest cannot. This is the same argument the product makes to your own cluster in <code>digestEnforcement</code>.</p>
 
+<h2>v1.3.0</h2>
+
+<p>Not released yet.</p>
+
+<p><strong>Changed — activation now requires a certificate that carries the node ceiling; re-activate with a key issued by licence service 1.3.0 or later.</strong> A 1.3.0 operator refuses, at online and at offline activation, a certificate without the node ceiling, with "re-activate with a key issued by licence service 1.3.0 or later".</p>
+
+<p><strong>Changed — upgrading from 1.2.x applies migration 0025 on first start, and it moves forward only.</strong> <code>helm upgrade --reuse-values</code> works across the version: <code>nodes.pollInterval</code> and <code>nodes.graceDays</code> are read with their chart defaults, <code>5m</code> and <code>14</code>, when an upgrade carries the previous release's values forward. Rolling the chart back does not roll the schema back; a return to 1.2.x is a restore from backup, as the upgrade page says.</p>
+
+<p><strong>Changed — the licence page shows nodes per cluster.</strong> Its hint no longer says a licensed cluster may run any number of nodes: the licence states how many clusters it covers and how many Ready nodes each of them may have.</p>
+
+<p><strong>Added — a node ceiling per cluster, from the plan, with a 14-day grace.</strong> The operator counts the cluster's Ready nodes every <code>nodes.pollInterval</code> (<code>5m</code>) and compares the count with the ceiling in the certificate; the count never leaves the cluster, and the daily check still sends the same three values. Going over stops nothing. If the cluster is still over after <code>nodes.graceDays</code> (<code>14</code>), image names never seen this period are denied at admission with "node ceiling of N exceeded", and a denied name is not counted; everything already counted keeps running and keeps being enforced. Coming back within the ceiling clears the clock at once, and a poll that cannot count changes nothing. Neither value loosens the ceiling.</p>
+
+<p><strong>Added — the dashboard shows Nodes n / m and, while the cluster is over its ceiling, a strip with the date new image names will be denied from.</strong> Once that date has passed, the strip says enforcement is on.</p>
+
+<p><strong>Added — four notification events: <code>nodes_80</code>, <code>nodes_over</code>, <code>nodes_enforced</code> and <code>nodes_cleared</code>.</strong> <code>nodes_80</code> fires at 80 percent of the ceiling, <code>nodes_over</code> when the cluster goes over (with the date enforcement starts), <code>nodes_enforced</code> when the grace period ends with the cluster still over, and <code>nodes_cleared</code> when it is back within. Each transition notifies once. A new channel has <code>nodes_over</code> and <code>nodes_enforced</code> ticked; the other two are opt-in.</p>
+
+<p><strong>Added — new metric series.</strong> <code>attestkeep_nodes{kind="count"|"ceiling"}</code> (<code>-1</code> = no ceiling) and <code>attestkeep_node_overage_seconds</code>, how long the cluster has been over its ceiling, 0 while within. Node denials count under <code>reason="quota"</code> on <code>attestkeep_admission_denials_total</code>.</p>
+
+<p><strong>Added — an evidence package's <code>generation</code> block carries <code>nodes {count, ceiling}</code>.</strong> The cluster's Ready nodes as the operator last counted them at generation and the licence's node ceiling (<code>-1</code> = none), numbers only; <code>count</code> is <code>null</code> when no count had been taken.</p>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 1.3.0 \
+  --namespace attestkeep --wait</code></pre>
+
 <h2>v1.2.0</h2>
 
 <p>2026-09-30.</p>

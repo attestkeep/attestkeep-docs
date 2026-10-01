@@ -15,7 +15,7 @@ attestkeep-docs/
 │       ├── install       — Helm ile kurulum, test edilen K8s tabanı (1.27/1.35), ilk değer
 │       ├── what-runs     — cluster envanteri: workload'lar, RBAC gerekçeleriyle, tüm egress tablosu, lisans sunucusu ele geçirilirse ne olur
 │       ├── scope         — kapsam dışı beş iş (runtime davranış tespiti, IaC/CIS taraması, CSPM, reachability analizi, repo bağımlılık taraması) ve her biri için yanına ne konulacağı
-│       ├── licensing     — planlar, aktivasyon (online + offline sertifika, Deactivate), küme slotları, günlük kontrol (Usage/Licence ekranı + sertifika runway görseli)
+│       ├── licensing     — planlar (1.3.0: cluster başına node tavanı, 14 gün tolerans, #node-ceiling), aktivasyon (online + offline sertifika, Deactivate), küme slotları, günlük kontrol (Usage/Licence ekranı + sertifika runway görseli)
 │       ├── using-the-console — konsol ekran ekran: güvenlik özeti, politikalar, açıklar, triyaj, kanıt paketi, break-glass, ledger (görselli kılavuz)
 │       ├── configuration — Helm değerleri; konsolda kalanların ayrımı (SSO ekranı görseli)
 │       ├── policies       — ImageSecurityPolicy: alan referansı, hazır politika
