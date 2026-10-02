@@ -14,8 +14,18 @@ that cannot reach the transparency log. Verify the digest, not the tag.
 
 ```sh
 curl -sO https://docs.attestkeep.com/cosign.pub
-cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:1.3.1
+cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:1.3.2
 ```
+
+## 1.3.2 — 2026-10-03
+
+**Fixed — if you copied the falcoctl values from the 1.3.1 rule editor, add `falco-rules:5` back to them.** The values left out the Falco chart's default reference. Helm replaces a list instead of merging it, so pasted as shown they stopped falcoctl from installing `/etc/falco/falco_rules.yaml`, which `rules_files` still listed. The editor now shows `falco-rules:5` in both `install.refs` and `follow.refs`.
+
+**Fixed — the Runtime alert description in a channel's event list was out of date.** It said the pod keeps running and mentioned an issue threshold that no longer exists. It now says what is sent: a message when a policy with Send a notification matches, and an issue when the policy has Open an issue on.
+
+**Fixed — the Stop the pod hints in the policy form said the pod is deleted and killed within a second.** The pod is evicted with a one-second grace period, and the hints now say so.
+
+No migrations and no new chart values.
 
 ## 1.3.1 — 2026-10-03
 
