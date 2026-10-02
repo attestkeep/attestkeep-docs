@@ -14,7 +14,7 @@
 <p>Pin the version if your change process needs it:</p>
 
 <pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
-  --namespace attestkeep --version 0.3.5 --wait</code></pre>
+  --namespace attestkeep --version 1.3.1 --wait</code></pre>
 
 <h2>What happens to the database</h2>
 
@@ -82,7 +82,7 @@
 
 <p>Every release is signed. Check it before you upgrade:</p>
 
-<pre><code>cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.3.5 \
+<pre><code>cosign verify ghcr.io/attestkeep/attestkeep-k8s:1.3.1 \
   --certificate-identity-regexp '^https://github.com/attestkeep/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com</code></pre>
 
