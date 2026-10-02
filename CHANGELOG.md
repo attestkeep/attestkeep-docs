@@ -14,26 +14,26 @@ that cannot reach the transparency log. Verify the digest, not the tag.
 
 ```sh
 curl -sO https://docs.attestkeep.com/cosign.pub
-cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.5
+cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:1.3.1
 ```
 
 ## 1.3.1 — 2026-10-03
 
-**Changed — remove `runtime.enforceBlocks` from your policy files: runtime blocks are gone.** The policy resource no longer has a `runtime` field, and `kubectl apply` with its default strict validation refuses a policy that still carries it with `unknown field "spec.runtime"`. Nothing at runtime changes an admission decision any more. A runtime rule written as `block` becomes `notify` with an issue on, by migration 0031, and the API refuses `block`. To act on a running pod, use `stop` below.
+**Changed — remove `runtime.enforceBlocks` from your policy files: runtime blocks are gone.** The policy resource no longer has a `runtime` field. With its default strict validation, `kubectl apply` refuses a policy that still has it with `unknown field "spec.runtime"`. Runtime events no longer change admission decisions. Migration 0031 turns runtime policies with action `block` into `notify` with an issue, and the API refuses `block`. To act on a running pod, use `stop` below.
 
 **Changed — upgrading from 1.3.0 applies migrations 0026 to 0032 on first start, and they move forward only.** `helm upgrade --reuse-values` works across the version: `integrations.falco.connection` is read with its default, `mtls`. A return to 1.3.0 is a restore from backup, as the upgrade page says.
 
-**Changed — a new notification channel is subscribed to `runtime_alert`.** Only events a runtime policy chose to notify about reach a channel, and a channel added after the policy used to miss them. Existing channels keep their subscriptions.
+**Changed — a notification channel created in the console has Runtime alert (`runtime_alert`) switched on.** Only events a runtime policy chooses to notify about are sent. Before, a channel added after the policy did not get them. Existing channels keep their subscriptions.
 
 **Changed — the audit log shows the last month by default, a page at a time, with a date range for anything older.** Before, the page held the newest 200 entries and nothing older could be reached from it. The CSV export (Enterprise) covers the whole range selected, not the page on screen.
 
 **Changed — the images and vulnerabilities lists are read a page at a time.** Their filters, search and sort run in the operator, and the counts above each table still cover everything. `GET /api/v1/images` and `GET /api/v1/vulnerabilities` page when given `limit` and `offset`, and return the whole list as before without them.
 
-**Added — a runtime policy can stop the pod an event came from.** `stop_mode: immediate`, the default, kills the containers within about two seconds; `graceful` gives the pod its own termination grace period. It evicts through the API server, so a PodDisruptionBudget is honoured, needs `rbac.allowEnforce: true`, never touches the operator's own namespace, and every attempt is written to the audit log as `runtime_pod_stop` with the pod UID.
+**Added — a runtime policy can stop the pod an event came from.** The operator evicts the pod through the API server, so PodDisruptionBudgets apply. `stop_mode: immediate`, the default, uses a one-second grace period. `graceful` uses the pod's own termination grace period. Stopping needs `rbac.allowEnforce: true`, and pods in the operator's own namespace are never stopped. Every attempt is written to the audit log as `runtime_pod_stop` with the pod UID.
 
-**Added — write Falco rules in the console (beta).** Falco > Rules > New rule edits a Falco rules file for the Falco version your cluster runs, validates it with that Falco in a one-off pod, saves each accepted text as a version, and publishes it to your own OCI registry as falcoctl's `rulesfile` artifact for your falcoctl to install and follow. Attestkeep never writes to Falco.
+**Added — Falco rules can be written in the console (beta).** Falco > Rules > New rule edits a Falco rules file for the Falco version running in your cluster and validates it with that Falco image in a one-off pod. Each accepted text is saved as a version. Publishing pushes a version to your own OCI registry as a falcoctl `rulesfile` artifact, which your falcoctl installs and follows. Attestkeep does not write to Falco.
 
-**Added — Falco can connect through Falcosidekick.** `integrations.falco.connection: sidekick` takes events from Sidekick's webhook output with the same client certificate; `mtls`, the default, is Falco's own `http_output` as before. Each event records which one delivered it, and the console warns when that does not match the setting.
+**Added — Falco can connect through Falcosidekick.** With `integrations.falco.connection: sidekick`, events come from Sidekick's webhook output with the same client certificate. `mtls`, the default, is Falco's own `http_output` as before. Each event records whether Falco or Sidekick delivered it, and the console warns when that does not match the setting.
 
 **Added — when a licence covers fewer frameworks than were used, an administrator chooses which to keep.** The choice is asked at sign-in, holds until the licence changes, and is audited; the others close for new packages, and packages already generated stay downloadable.
 
@@ -45,7 +45,7 @@ cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.5
 
 **Fixed — after a licence lapsed, every framework already used stayed open for new packages.** They now wait for the administrator's choice above.
 
-**Fixed — a runtime alert sent nowhere was counted as notified.** With no channel receiving it, the evidence package's count of alerts sent included it. An alert is now recorded as notified only when an enabled channel receives it.
+**Fixed — a runtime alert with no channel to receive it was counted as notified.** The evidence package counted it as sent. An alert now counts as notified only when at least one enabled channel is subscribed to receive it.
 
 **Fixed — the message and the issue for a runtime alert said the pod was still running when the policy had stopped it.**
 
