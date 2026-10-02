@@ -8,7 +8,7 @@
 
 <h2>The security overview</h2>
 
-<p>The dashboard is the posture of one cluster at a glance: operator health, the admission webhook's state, the database, and the vulnerability feed — then the counts that matter, image coverage, what was blocked, and where you stand against your monthly image band.</p>
+<p>The dashboard is the posture of one cluster at a glance: operator health, the admission webhook's state, the database, and the vulnerability feed — then the counts that matter, image coverage, what was blocked, where you stand against your monthly image band, and the cluster's Ready nodes against its node ceiling. The admissions table below lists the most recent refusals.</p>
 
 <figure class="shot">
   <img src="/img/manual/04-dashboard.png" alt="The security overview: health tiles across the top, coverage and quota counts below, a severity trend and a compliance donut." loading="lazy" />
@@ -26,7 +26,7 @@
 
 <h2>Vulnerabilities</h2>
 
-<p>Every finding across your images, grouped by CVE, with the installed and fixed versions side by side and how many images each affects. The filters narrow by severity, by whether a fix exists, and by triage state, so a view like "critical, fixable, untriaged" is three filters, not a scroll through everything.</p>
+<p>Every finding across your images, grouped by CVE, with the installed and fixed versions side by side and how many images each affects. The filters narrow by severity, by whether a fix exists, and by triage state, so a view like "critical, fixable, untriaged" is three filters, not a scroll through everything. The list is read 25 CVEs at a time: the filters, the search and the sort run in the operator, and the counts above the table cover every finding. The images list works the same way.</p>
 
 <figure class="shot">
   <img src="/img/manual/05-vulnerabilities.png" alt="The vulnerabilities list: CVEs with severity, package, installed and fixed versions, affected image count and triage state." loading="lazy" />

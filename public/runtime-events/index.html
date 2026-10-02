@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Runtime events from Falco — Attestkeep docs</title>
-<meta name="description" content="Connect your own Falco to Attestkeep over mutual TLS so its events are filed against the image that produced them, acted on by your runtime rules and reported in the evidence pack.">
+<meta name="description" content="Connect your own Falco to Attestkeep over mutual TLS, directly or through Falcosidekick, so its events are filed against the image that produced them, acted on by your runtime policies and reported in the evidence pack.">
 <link rel="canonical" href="https://docs.attestkeep.com/runtime-events/">
 <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#071f20">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Runtime events from Falco — Attestkeep docs">
-<meta property="og:description" content="Connect your own Falco to Attestkeep over mutual TLS so its events are filed against the image that produced them, acted on by your runtime rules and reported in the evidence pack.">
+<meta property="og:description" content="Connect your own Falco to Attestkeep over mutual TLS, directly or through Falcosidekick, so its events are filed against the image that produced them, acted on by your runtime policies and reported in the evidence pack.">
 <meta property="og:url" content="https://docs.attestkeep.com/runtime-events/">
 <script type="application/ld+json">
 {
@@ -19,7 +19,7 @@
     {
       "@type": "TechArticle",
       "headline": "Runtime events from Falco",
-      "description": "Connect your own Falco to Attestkeep over mutual TLS so its events are filed against the image that produced them, acted on by your runtime rules and reported in the evidence pack.",
+      "description": "Connect your own Falco to Attestkeep over mutual TLS, directly or through Falcosidekick, so its events are filed against the image that produced them, acted on by your runtime policies and reported in the evidence pack.",
       "url": "https://docs.attestkeep.com/runtime-events/",
       "inLanguage": "en",
       "isPartOf": { "@type": "WebSite", "name": "Attestkeep docs", "url": "https://docs.attestkeep.com/" },
@@ -100,10 +100,10 @@
 
   <main class="content" id="content">
     <h1>Runtime events from Falco</h1>
-<p class="lede">Attestkeep decides what may run. Falco watches what a container does once it is running. This integration is the join between them: your Falco's events arrive here, are filed against the image that produced them, and your runtime rules decide what each one leads to.</p>
+<p class="lede">Attestkeep decides what may run. Falco watches what a container does once it is running. This integration is the join between them: your Falco's events arrive here, are filed against the image that produced them, and your runtime policies decide what each one leads to.</p>
 
 <div class="note">
-  <p><strong>Attestkeep does not ship, install or run Falco.</strong> The detection is yours; this is a place to put what it found and decide what follows. An event changes an admission decision only when you ask it to: a <code>block</code> rule opens a runtime block on the image, and only a policy with <code>runtime.enforceBlocks: true</code> refuses new pods of a blocked image. A broken alert stream cannot break your cluster — no events means no new blocks, never a refusal. Runtime behaviour detection stays outside what this product does, for the reasons on <a href="/scope/">what Attestkeep does not do</a>.</p>
+  <p><strong>Attestkeep does not ship, install or run Falco, and never writes to it.</strong> The detection is yours; this is a place to put what it found and decide what follows. An event never changes an admission decision. What it leads to is up to your runtime policies: a message, an issue and, only where a policy says so, stopping the pod it came from. A broken alert stream cannot break your cluster: no events means nothing is done. Runtime behaviour detection stays outside what this product does, for the reasons on <a href="/scope/">what Attestkeep does not do</a>.</p>
 </div>
 
 <h2>What you need</h2>
@@ -113,7 +113,7 @@
   <li>Network reach from the Falco pods to the operator's Service on the integrations port, <code>8444</code> by default. Both usually live in the same cluster, so this is a ClusterIP address and no ingress.</li>
 </ul>
 
-<p>Falco sends each event itself, from its own <code>http_output</code>, straight to the operator. Nothing sits in between: no Falcosidekick, no token.</p>
+<p>Two ways in, chosen with <code>integrations.falco.connection</code>. With <code>mtls</code>, the default, Falco sends each event itself, from its own <code>http_output</code>, straight to the operator. If your Falco already feeds <strong>Falcosidekick</strong>, use <code>sidekick</code>: Falco's <code>http_output</code> has a single URL and the Falco chart points it at Sidekick, so the events reach the operator through Sidekick's webhook output (step 4b). Either way the listener and the client certificate are the same, and there is no token.</p>
 
 <h2>How Falco proves who it is</h2>
 
@@ -130,16 +130,17 @@
 <pre><code>integrations:
   port: 8444
   falco:
-    enabled: true</code></pre>
+    enabled: true
+    connection: mtls   <span class="s"># or sidekick, see 4b</span></code></pre>
 
 <pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
   -n attestkeep -f values.yaml</code></pre>
 
-<p>The chart opens the integrations port on the pod and the Service, and the operator creates the Secret on start. With <code>enabled: false</code>, the default, there is no listener, no CA and no Falco section in the console.</p>
+<p>The chart opens the integrations port on the pod and the Service, and the operator creates the Secret on start. Any other value of <code>connection</code> fails the chart. With <code>enabled: false</code>, the default, there is no listener and no CA; the console's <strong>Falco</strong> menu then shows admins only <strong>Falco integration</strong>, and shows nothing to other roles. After an upgrade, <code>helm</code> prints the Falco chart values for the chosen connection.</p>
 
 <h2>2. Download the certificates</h2>
 
-<p>In the console, <strong>Settings &gt; Integrations</strong> (admins only) shows the endpoint URL, when Falco's client certificate expires and when the last event arrived. <strong>Download certificates</strong> gives <code>attestkeep-falco-mtls.tar.gz</code> with three files:</p>
+<p>In the console, <strong>Falco &gt; Falco integration</strong> (admins only) shows the connection, the endpoint URL, when Falco's client certificate expires and when the last event arrived. <strong>Download certificates</strong> gives <code>attestkeep-falco-mtls.tar.gz</code> with three files:</p>
 
 <div class="table-wrap">
 <table>
@@ -147,7 +148,7 @@
   <tbody>
     <tr><td><code>ca.crt</code></td><td>The CA that verifies the operator's serving certificate.</td></tr>
     <tr><td><code>client.crt</code></td><td>Falco's client certificate.</td></tr>
-    <tr><td><code>client.key</code></td><td>Its private key. Keep it private: whoever holds it can post events your runtime rules act on.</td></tr>
+    <tr><td><code>client.key</code></td><td>Its private key. Keep it private: whoever holds it can post events your runtime policies act on.</td></tr>
   </tbody>
 </table>
 </div>
@@ -160,7 +161,7 @@
 kubectl -n falco create secret generic attestkeep-falco-client \
   --from-file=ca.crt --from-file=client.crt --from-file=client.key</code></pre>
 
-<h2>4. Point Falco at the operator</h2>
+<h2>4. Point Falco at the operator (<code>connection: mtls</code>)</h2>
 
 <p>Values for the upstream <code>falcosecurity/falco</code> chart. <code>certs.existingClientSecret</code> is that chart's own value for an existing Secret holding <code>client.crt</code>, <code>client.key</code> and <code>ca.crt</code> for outbound HTTP output mTLS, and the paths are the ones its README uses for it:</p>
 
@@ -179,23 +180,58 @@ certs:
 
 <p>The URL is the one the console shows: <code>https://&lt;release&gt;.&lt;namespace&gt;.svc:&lt;integrations.port&gt;/api/v1/integrations/falco</code>. <code>json_output: true</code> is required — the endpoint reads Falco's JSON alert.</p>
 
+<h2>4b. Through Falcosidekick (<code>connection: sidekick</code>)</h2>
+
+<p>Use these Falco chart values instead of the <code>http_output</code> ones above. The chart then points Falco's <code>http_output</code> at Falcosidekick, and Sidekick's webhook output posts to the operator with the same client certificate, mounted from the same Secret. Sidekick's other outputs keep working.</p>
+
+<pre><code><span class="s"># values for the falcosecurity/falco chart</span>
+falco:
+  json_output: true
+falcosidekick:
+  enabled: true
+  config:
+    mutualtlsclient:
+      certfile: /etc/attestkeep/falco-client/client.crt
+      keyfile: /etc/attestkeep/falco-client/client.key
+      cacertfile: /etc/attestkeep/falco-client/ca.crt
+    webhook:
+      address: https://attestkeep.attestkeep.svc:8444/api/v1/integrations/falco
+      mutualtls: true
+      minimumpriority: ""
+  extraVolumes:
+    - name: attestkeep-falco-client
+      secret:
+        secretName: attestkeep-falco-client
+  extraVolumeMounts:
+    - name: attestkeep-falco-client
+      mountPath: /etc/attestkeep/falco-client
+      readOnly: true</code></pre>
+
+<ul>
+  <li>The Falco chart points <code>http_output</code> at Sidekick only while <code>falco.http_output.url</code> is empty. Coming from <code>connection: mtls</code>, set it back to <code>""</code> (and <code>mtls: false</code>), or Falco keeps posting to the operator directly.</li>
+  <li><code>minimumpriority: ""</code> keeps every event, as a direct connection does.</li>
+  <li>The operator records each event as delivered by <code>falcosidekick</code> or <code>falco</code>, and the console says so next to <strong>Last event</strong>, with a warning when it does not match <code>connection</code>. Sidekick may change what arrives: when an event's JSON is longer than 4096 characters it shortens every <code>output_fields</code> string over 512 characters to 507 plus <code>[...]</code>, and its <code>customtags</code>, <code>customfields</code> and <code>outputFieldFormat</code> settings, if you use them, change the tags and the output line.</li>
+</ul>
+
+<p>Tested with the <code>falcosecurity/falco</code> chart 9.2.0 (Falco 0.45.0, Falcosidekick 2.32.0).</p>
+
 <h2>5. Check it arrives</h2>
 
-<p>Trigger any rule — <code>kubectl exec</code> a shell into a pod, for example — and look at <strong>Settings &gt; Integrations &gt; Last event</strong>, or at the <strong>Falco</strong> section, which appears in the sidebar once the integration is on. <code>GET /api/v1/runtime/status</code> answers the same question: <code>enabled</code>, <code>last_event_at</code>, <code>events_24h</code>.</p>
+<p>Trigger any rule — <code>kubectl exec</code> a shell into a pod, for example — and look at <strong>Falco &gt; Falco integration &gt; Last event</strong>, or at the line at the top of every Falco page; <strong>Policies</strong>, <strong>Rules</strong> and <strong>Events</strong> appear in the sidebar once the integration is on. <code>GET /api/v1/runtime/status</code> answers the same question: <code>enabled</code>, <code>last_event_at</code>, <code>events_24h</code>.</p>
 
 <h2>Rotating the certificates</h2>
 
 <p><strong>Rotate</strong> on the same page, or <code>POST /api/v1/integrations/falco/rotate</code> (admin, audited), issues a new client certificate from the same CA. The previous one is <strong>not</strong> revoked: it keeps working until its own expiry, so Falco keeps delivering while you download the new bundle and replace the Secret in the Falco namespace. Rotating the Falco CA itself is not offered in this version.</p>
 
-<p>The <code>ca.crt</code> in the bundle is the CA of the operator's serving certificate, and that pair rotates about once a year. The bundle carries the previous CA as well as the current one, so Falco keeps connecting through one rotation; it does not through the second. As soon as the CA has changed since the bundle was last downloaded, <strong>Settings &gt; Integrations</strong> says "Certificates changed on &lt;date&gt;": download the bundle again and replace the Secret in the Falco namespace before the next rotation.</p>
+<p>The <code>ca.crt</code> in the bundle is the CA of the operator's serving certificate, and that pair rotates about once a year. The bundle carries the previous CA as well as the current one, so Falco keeps connecting through one rotation; it does not through the second. As soon as the CA has changed since the bundle was last downloaded, <strong>Falco &gt; Falco integration</strong> says "Certificates changed on &lt;date&gt;": download the bundle again and replace the Secret in the Falco namespace before the next rotation.</p>
 
 <h2>Upgrading from the token endpoint</h2>
 
-<p>Releases before 1.2.0 took events on the API port with a bearer token (<code>integrations.falco.existingSecret</code>), which only a forwarder that can set a header, such as Falcosidekick, could use. That path is gone: the API port no longer serves <code>POST /api/v1/integrations/falco</code>, the token is no longer read, and <code>integrations.falco.minPriority</code> is no longer read either. Events stop arriving on upgrade until Falco is connected as above. Follow steps 1 to 4, point Falco's own <code>http_output</code> at the integrations port, and delete the old token Secret.</p>
+<p>Releases before 1.2.0 took events on the API port with a bearer token (<code>integrations.falco.existingSecret</code>). That path is gone: the API port no longer serves <code>POST /api/v1/integrations/falco</code>, the token is no longer read, and <code>integrations.falco.minPriority</code> is no longer read either. Events stop arriving on upgrade until Falco is connected as above. Follow steps 1 to 4 (or 4b) and delete the old token Secret.</p>
 
 <h2>Every event is stored</h2>
 
-<p>There is no priority floor on this side: what an event leads to is decided by your runtime rules, not by Falco's priority. Falco's own <code>falco.priority</code> is the place to stop traffic you never want kept, because it saves the delivery. What does arrive is kept for <code>runtime.retentionDays</code>, 90 by default, and then removed by an hourly sweep; <code>0</code> keeps it. Only events are removed — issue history, audit entries and rule revisions stay.</p>
+<p>There is no priority floor on this side: what an event leads to is decided by your runtime policies, not by Falco's priority. Falco's own <code>falco.priority</code> is the place to stop traffic you never want kept, because it saves the delivery. What does arrive is kept for <code>runtime.retentionDays</code>, 90 by default, and then removed by an hourly sweep; <code>0</code> keeps it. Only events are removed — issue history, audit entries and rule revisions stay.</p>
 
 <h2>Priorities</h2>
 
@@ -203,7 +239,7 @@ certs:
 
 <pre><code>emergency  alert  critical  error  warning  notice  informational  debug</code></pre>
 
-<p>A rule can compare against it with <code>&gt;=</code>, <code>=</code> or <code>in</code>. An event whose priority this version does not recognise is stored and matches no priority condition.</p>
+<p>A policy can compare against it with <code>&gt;=</code>, <code>=</code> or <code>in</code>. An event whose priority this version does not recognise is stored and matches no priority condition.</p>
 
 <h2>Response codes</h2>
 
@@ -227,11 +263,11 @@ certs:
 
 <p>Redelivery is safe. Nothing in Falco's payload identifies a delivery, so the operator keys on the detector source, the rule, the event's own timestamp, the container id and the pod. The same detection delivered twice is one row and a <code>204</code>.</p>
 
-<h2>Runtime rules: what happens after an event</h2>
+<h2>Runtime policies: what happens after an event</h2>
 
-<p>Each stored event is checked against your runtime rules, in order, and the <strong>first rule that matches decides</strong>. No match means <code>record</code>: the event is kept and nothing is sent. The rules are written in the console's <strong>Falco</strong> section, stored in the database and versioned: every change writes the whole rule set, with its hash, as a revision, and an audit entry saying what changed.</p>
+<p>Each stored event is checked against your runtime policies, in order, and the <strong>first policy that matches decides</strong>. No match means <code>record</code>: the event is kept and nothing is sent. Policies are written in the console's <strong>Falco &gt; Policies</strong> page, stored in the database and versioned: every change writes the whole set, with its hash, as a revision, and an audit entry saying what changed.</p>
 
-<p>A rule has three parts. <strong>Match</strong> — every condition that is set must hold:</p>
+<p>A policy has three parts. <strong>Match</strong> — every condition that is set must hold:</p>
 
 <div class="table-wrap">
 <table>
@@ -248,85 +284,85 @@ certs:
 </table>
 </div>
 
-<p>A rule with no condition is refused.</p>
+<p>A policy with no condition is refused.</p>
 
-<p><strong>Window</strong> — <code>count</code> events within <code>duration</code>, counted per image digest (per namespace and pod for an event with no digest), the current one included. The action fires on the event that reaches the count; the events before it are recorded against the rule with action <code>record</code>.</p>
+<p><strong>Window</strong> — <code>count</code> events within <code>duration</code>, counted per image digest (per namespace and pod for an event with no digest), the current one included. The action fires on the event that reaches the count; the events before it are recorded against the policy with action <code>record</code>.</p>
 
 <p><strong>Action</strong> — one of:</p>
 
 <ul>
   <li><code>allow</code> — keep the event, do nothing else. Put one at the top to quiet a known-noisy source instead of editing Falco's rule files.</li>
   <li><code>record</code> — keep the event.</li>
-  <li><code>notify</code> — send it to every notification channel subscribed to the <code>runtime_alert</code> event when <code>notify</code> is on, and open an issue in the tracker channels subscribed to it when <code>issue</code> is on. At most one message per rule and image per <code>throttle</code>, an hour by default; a held-back event is counted as <code>dropped_total{reason="throttled"}</code>. A channel receives <code>runtime_alert</code> only once you tick it.</li>
-  <li><code>block</code> — everything <code>notify</code> does, always with an issue, and it opens a <strong>runtime block</strong> on the image when the window is reached. <code>block_until</code> says what ends it: <code>triage</code>, the default, where a person releases it, or <code>window</code>, where it also ends once the window passes with no further event.</li>
+  <li><code>notify</code> — send it to every notification channel subscribed to the <code>runtime_alert</code> event when <code>notify</code> is on, open an issue in the tracker channels subscribed to it when <code>issue</code> is on, and stop the pod when <code>stop</code> is on (below). At most one message per policy and image per <code>throttle</code>, an hour by default; a held-back event is counted as <code>dropped_total{reason="throttled"}</code>.</li>
 </ul>
 
-<p>Every event records the rule that matched and the action on its row, so the events page and the evidence say what was decided, not only what arrived.</p>
+<p><code>block</code> was removed in 1.3.1, together with runtime blocks: a policy written as <code>block</code> became <code>notify</code> with <code>issue</code> on, and the API refuses <code>block</code>.</p>
 
-<p>The message is titled <code>Runtime alert: &lt;Falco rule&gt;</code>, carries Falco's output line as its body, and lists rule, priority, source, namespace, pod, container, image, digest, node, time, the matched rule and its action. Emergency, alert and critical are sent at level <code>critical</code>; everything else at <code>warning</code>.</p>
+<p>Every event records the policy that matched and the action on its row, so the events page and the evidence say what was decided, not only what arrived. The policy's name, the hash of its content and the hash of the whole set are stored with the decision, so renaming or deleting a policy later does not change what its past events say decided them.</p>
 
-<p><strong>Issues</strong> are opened only for an event filed against an image digest: one per digest and Falco rule, titled <code>RUNTIME: &lt;rule&gt; in &lt;image&gt;</code> and labelled <code>runtime</code>. The channel's daily cap counts them. An issue closes for one of three reasons, and the closing comment says which:</p>
+<p><strong>Who receives it.</strong> A new notification channel is subscribed to <code>runtime_alert</code> from 1.3.1, so a channel added after the policy gets the alerts the policy was written to send. An event is recorded as notified only when at least one enabled channel receives it; with no channel, nothing is sent and the evidence does not count an alert that reached no one.</p>
+
+<p>The message is titled <code>Runtime alert: &lt;Falco rule&gt;</code>, carries Falco's output line as its body, and lists rule, priority, source, namespace, pod, container, image, digest, node, time, the matched policy and its action. When the policy stopped the pod, the message says so instead of saying the pod is still running. Emergency, alert and critical are sent at level <code>critical</code>; everything else at <code>warning</code>.</p>
+
+<p><strong>Issues</strong> are opened only for an event filed against an image digest: one per digest and Falco rule, titled <code>RUNTIME: &lt;rule&gt; in &lt;image&gt;</code> and labelled <code>runtime</code>. The body says whether a runtime policy stopped the pod. The channel's daily cap counts them. An issue closes as <code>quiet</code> (no event of that rule on that image for 7 days) or <code>image_retired</code> (no pod has run that image digest for 24 hours), and the closing comment says which. Neither is a fix: the behaviour was reported, not removed. See <a href="/issue-trackers/">issue trackers</a> for the channel itself.</p>
+
+<h2 id="stopping-the-pod">Stopping the pod</h2>
+
+<p>A <code>notify</code> policy with <code>stop</code> on stops the pod the event names as soon as the event arrives (once the window, when there is one, is reached). The operator asks the API server to evict it, so a PodDisruptionBudget is honoured: while one does not allow it, the pod keeps running and the audit log says so. The pod's controller starts a fresh one; a pod nothing manages is gone for good, and if the cause is in the image the new pod can raise the event again.</p>
 
 <ul>
-  <li><code>quiet</code> — no event of that rule on that image for 7 days;</li>
-  <li><code>image_retired</code> — no pod has run that image digest for 24 hours;</li>
-  <li><code>released</code> — its runtime block was released by triage.</li>
+  <li><code>stop_mode: immediate</code>, the default, evicts with a one-second grace: the containers are killed within about two seconds, and whatever was started in them, an open shell session included, ends there.</li>
+  <li><code>stop_mode: graceful</code> gives the pod its own termination grace period, 30 seconds by default, to shut down cleanly; a session opened inside lives until then.</li>
 </ul>
 
-<p>None of them is a fix: the behaviour was reported, not removed. See <a href="/issue-trackers/">issue trackers</a> for the channel itself.</p>
+<p>It needs the chart's <code>rbac.allowEnforce: true</code> (pod eviction); without it the attempt is refused and recorded. A pod in the operator's own namespace is never stopped, and one pod is stopped once however many events it raises. Every attempt is written to the audit log as <code>runtime_pod_stop</code>, with the policy as the actor (<code>policy:&lt;name&gt;</code>), the pod as the target, and the pod UID, container, image, digest, node, the event id and the result in the detail. <strong>An event never changes an admission decision</strong>: a stop acts on the running pod, not on new pods of the image.</p>
 
-<h2>Runtime blocks</h2>
+<h2>Writing Falco rules in the console</h2>
 
-<p>A <code>block</code> rule whose window is reached on an image digest opens one block for that digest and rule. Further events of the same rule on the same digest count on the open block rather than opening another. An event with no image digest never opens a block: there is nothing admission could recognise it by.</p>
-
-<p><strong>Enforcement.</strong> After the break-glass, registry, tag, digest and quota gates and before the vulnerability evaluation, admission asks whether the image's digest has an open block:</p>
+<p><strong>Falco &gt; Rules &gt; New rule</strong> (admins) opens an editor for a Falco rules file: Falco's own YAML, rules, macros, lists and overrides together, kept under a name. It is in beta in this version. The editor completes and checks as you type for the Falco version your cluster runs, which it reads from the Falco pods (found by the label Falco's own Helm chart sets; a Falco installed some other way is not found, and the editor says so).</p>
 
 <ul>
-  <li>Under a policy with <code>runtime.enforceBlocks: true</code> the pod is refused with
-<pre><code>runtime: &lt;rule name&gt;: &lt;Falco rule&gt; x&lt;count&gt; since &lt;first event, RFC 3339&gt;; triage required</code></pre>
-  counted as <code>attestkeep_admission_denials_total{reason="runtime"}</code> and <code>attestkeep_runtime_admissions_denied_total</code>. Audit-mode policies record the refusal and admit, as for every other gate.</li>
-  <li>Otherwise the pod is decided as before and its ledger row carries the warning <code>runtime block open (not enforced): &lt;rule name&gt;</code>.</li>
+  <li><strong>Validate</strong> runs <code>falco --validate</code> on the file in a one-off pod with the very image your Falco runs, in the operator's namespace: no service-account token, no privileges, read-only, deleted as soon as the answer is read. Falco itself is not touched. The chart creates the Role the pod needs, <code>&lt;release&gt;-rule-validation</code>.</li>
+  <li><strong>Save</strong> is offered only once the same text has passed Falco, and the server validates it again before it stores anything. Every save is a new version, kept with who saved it and which Falco image and version accepted it. The rules the file defines join the <strong>Rules</strong> list, so a policy can name them before any event has arrived; a rule another saved file already defines is refused with <code>409</code>.</li>
+  <li><strong>Publish</strong> pushes a saved version to your own OCI registry as falcoctl's <code>rulesfile</code> artifact, tagged with its version number and <code>latest</code>. Give the repository (registry and path, no tag) and, for a registry that needs a login, the <strong>name</strong> of a <code>kubernetes.io/dockerconfigjson</code> Secret in the namespace Attestkeep runs in; the credential itself is never stored by Attestkeep. A registry named in <code>scan.insecureRegistries</code> is reached over plain HTTP. If your Falco's image has changed since the version was validated, publishing validates it again first.</li>
 </ul>
 
-<pre><code>spec:
-  runtime:
-    enforceBlocks: true</code></pre>
+<p><strong>Your Falco picks it up through falcoctl.</strong> Attestkeep never writes to Falco. Add the reference to falcoctl in your Falco chart values, keeping your existing references, and list the file in <code>rules_files</code> after Falco's own rules; the editor shows these values with your repository and file name filled in:</p>
 
-<p><code>runtime.enforceBlocks</code> is a <a href="/policies/">policy</a> field, default <code>false</code>, also in the console's policy form as "Enforce runtime blocks". <strong>An event never stops a running pod</strong>: a block acts at the door, on new pods of the digest. A <a href="/policies-whatif/">what-if replay</a> reports <code>denied_by_runtime</code> — how many replayed admissions the draft would refuse because of a block open now.</p>
+<pre><code><span class="s"># values for the falcosecurity/falco chart</span>
+falcoctl:
+  config:
+    artifact:
+      install:
+        refs:
+          - registry.example.com/falco/my-rules:latest
+      follow:
+        refs:
+          - registry.example.com/falco/my-rules:latest
+        every: 5m
+falco:
+  rules_files:
+    - /etc/falco/falco_rules.yaml
+    - /etc/falco/my-rules.yaml</code></pre>
 
-<p><strong>Ending a block.</strong> A block is released for one of five reasons:</p>
+<p>falcoctl checks the reference every <code>follow.every</code>. If the registry needs a login, falcoctl takes it from <code>FALCOCTL_REGISTRY_AUTH_BASIC</code> (<code>registry,user,password</code>) in <code>falcoctl.artifact.install.env</code> and <code>follow.env</code>. Deleting a file in the console removes its rules from the Rules list; what was already published stays in the registry and in every Falco that installed it, until you remove it from falcoctl there.</p>
 
-<div class="table-wrap">
-<table>
-  <thead><tr><th>Reason</th><th>By</th></tr></thead>
-  <tbody>
-    <tr><td><code>triage_false_positive</code>, <code>triage_accepted</code>, <code>triage_resolved</code></td><td>An admin, in the console's <strong>Falco &gt; Blocks</strong> page or with the API; a note is required. Written to the audit log.</td></tr>
-    <tr><td><code>window_expired</code></td><td>The hourly sweep, for a <code>block_until: window</code> block whose window passed with no further event of the rule on the digest.</td></tr>
-    <tr><td><code>image_retired</code></td><td>The same sweep, once reconciliation has run within the last day and the image has not been seen running for a day.</td></tr>
-  </tbody>
-</table>
-</div>
-
-<pre><code>POST /api/v1/runtime/blocks/{id}/release
-{"reason": "triage_false_positive", "note": "..."}</code></pre>
-
-<p>A bad reason or an empty note answers <code>400</code>, an unknown block <code>404</code>, one already released <code>409</code>. A triage release closes the block's runtime issue in the tracker as <code>released</code>, with a comment carrying the reason, the note and who released it. For a block released as a false positive the Blocks page offers <strong>Make an allow rule</strong>: the rule form opens prefilled with the Falco rule, the namespace and the parent process of the block's latest event, action <code>allow</code>, and the saved rule is moved to the top so it is checked first.</p>
+<p>Validating, saving, deleting and publishing are written to the audit log as <code>falco_rule_validate</code>, <code>falco_rule_file_change</code> and <code>falco_rule_file_publish</code>.</p>
 
 <h2>What you get</h2>
 
-<p><strong>In the console.</strong> The Falco section lists events with the rule that matched and its action, the rules, and the blocks. The images list grows a <strong>Runtime</strong> column with each image's alert count for the last seven days — only once the operator has actually been sent an event, so an installation that does not use this sees no new column. The image detail panel lists the last 20 alerts for that image: time, priority, rule, namespace and pod, and Falco's own output line.</p>
+<p><strong>In the console.</strong> <strong>Falco &gt; Events</strong> lists events with the policy that matched and its action, filtered by text, priority, action, Falco rule, tag, namespace, pod and policy over a time range, a page at a time; the filter suggestions cover the range shown. <strong>Falco &gt; Policies</strong> and <strong>Falco &gt; Rules</strong> hold the policies and the Falco rules. The images list grows a <strong>Runtime</strong> column with each image's alert count for the last seven days — only once the operator has actually been sent an event, so an installation that does not use this sees no new column. The image detail panel lists the last 20 alerts for that image: time, priority, rule, namespace and pod, and Falco's own output line.</p>
 
 <p><strong>In the evidence pack.</strong> A <code>runtime</code> section carrying:</p>
 
 <ul>
-  <li>the rule set in force and its revision hash;</li>
-  <li><code>audit_entries</code> — every rule change, triage release and integration change in the period, each with its <code>kind</code>;</li>
-  <li>matches by rule and action, and the decisions taken, each with the tracker issue it opened, up to 500;</li>
-  <li>the blocks opened or released in the period, and how many admissions runtime refused;</li>
+  <li>the policy set in force and its revision hash;</li>
+  <li><code>audit_entries</code> — every policy change, pod a policy stopped and integration change in the period, each with its <code>kind</code>;</li>
+  <li>matches by policy and action, and the decisions taken, each with the tracker issue it opened, up to 500;</li>
   <li>coverage: whether the integration is on, the last event and the longest silence in the period.</li>
 </ul>
 
-<p>Two clocks are kept apart. Each decision carries <code>event_time</code>, Falco's own timestamp and the one to argue from, and <code>received_at</code>, when it reached the operator. A block's <code>first_event_at</code> and <code>last_event_at</code> are on Falco's clock, its <code>opened_at</code> and <code>released_at</code> on the operator's. Coverage is about the feed reaching the operator, so its last event and silence are on <code>received_at</code>, and <code>coverage.clock</code> says so. The PDF's column headings name the clock of each time column. The silence is measured from the later of the period start and the first event this installation ever received, because before the first event there was no feed to fall silent.</p>
+<p>Two clocks are kept apart. Each decision carries <code>event_time</code>, Falco's own timestamp and the one to argue from, and <code>received_at</code>, when it reached the operator. Coverage is about the feed reaching the operator, so its last event and silence are on <code>received_at</code>, and <code>coverage.clock</code> says so. The PDF's column headings name the clock of each time column. The silence is measured from the later of the period start and the first event this installation ever received, because before the first event there was no feed to fall silent.</p>
 
 <p>Ticking the raw events box in the Generate dialog — <code>include_runtime_raw: true</code> on <code>POST /api/v1/evidence</code> — adds the stored events themselves, with the same two clocks, up to 5000. Off by default.</p>
 
@@ -337,9 +373,7 @@ certs:
 <pre><code>attestkeep_runtime_events_total{source, priority}
 attestkeep_runtime_events_dropped_total{reason="duplicate|unresolved_image|throttled"}
 attestkeep_runtime_alerts_notified_total
-attestkeep_runtime_rule_matches_total{rule, action}
-attestkeep_runtime_blocks_open
-attestkeep_runtime_admissions_denied_total</code></pre>
+attestkeep_runtime_rule_matches_total{rule, action}</code></pre>
 
 <p><code>unresolved_image</code> is not a lost event. Falco watches the host as well as the containers on it, and an alert about a process in no container is stored unattributed — it appears in the evidence pack's runtime section with no image beside it.</p>
 

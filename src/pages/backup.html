@@ -35,11 +35,13 @@
   <li><strong>Both directions land in the audit log</strong>, with counts.</li>
 </ul>
 
+<p><strong>Backup history.</strong> From 1.3.1 the same page lists every export and import, ten to a page: when, by whom, and what the bundle carried — for an import, what was added, how many records were already there, and the cluster and time the bundle was exported from. A preview is not listed. The operator does not keep the bundle itself; the file you downloaded is the only copy.</p>
+
 <p>The bundle complements the database dump; it does not replace it. Findings, admission history, the ledger and its checkpoints only exist in PostgreSQL.</p>
 
 <h2>Backing up the bundled PostgreSQL</h2>
 
-<p>If you brought your own database, your existing backup regime already covers it and this section is not for you. The bundled database is a single-replica StatefulSet named <code>attestkeep-postgresql</code>, and a plain SQL dump is the portable answer:</p>
+<p>Attestkeep does not take database backups: the dump is yours to run, schedule and keep. If you brought your own database, your existing backup regime already covers it and this section is not for you. The bundled database is a single-replica StatefulSet named <code>attestkeep-postgresql</code>, and a plain SQL dump is the portable answer:</p>
 
 <pre><code>kubectl -n attestkeep exec statefulset/attestkeep-postgresql -- \
   sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' &gt; attestkeep.sql</code></pre>

@@ -124,6 +124,46 @@ cosign verify ghcr.io/attestkeep/attestkeep-k8s:0.3.5 \
 
 <p>Always verify the digest, not the tag: a tag can be moved to different content after it was signed, a digest cannot. This is the same argument the product makes to your own cluster in <code>digestEnforcement</code>.</p>
 
+<h2>v1.3.1</h2>
+
+<p>2026-10-03.</p>
+
+<p><strong>Changed — remove <code>runtime.enforceBlocks</code> from your policy files: runtime blocks are gone.</strong> The policy resource no longer has a <code>runtime</code> field, and <code>kubectl apply</code> with its default strict validation refuses a policy that still carries it with <code>unknown field "spec.runtime"</code>. Nothing at runtime changes an admission decision any more. A runtime rule written as <code>block</code> becomes <code>notify</code> with an issue on, by migration <code>0031</code>, and the API refuses <code>block</code>. To act on a running pod, use <code>stop</code> below.</p>
+
+<p><strong>Changed — upgrading from 1.3.0 applies migrations 0026 to 0032 on first start, and they move forward only.</strong> <code>helm upgrade --reuse-values</code> works across the version: <code>integrations.falco.connection</code> is read with its default, <code>mtls</code>. A return to 1.3.0 is a restore from backup, as the upgrade page says.</p>
+
+<p><strong>Changed — a new notification channel is subscribed to <code>runtime_alert</code>.</strong> Only events a runtime policy chose to notify about reach a channel, and a channel added after the policy used to miss them. Existing channels keep their subscriptions.</p>
+
+<p><strong>Changed — the audit log shows the last month by default, a page at a time, with a date range for anything older.</strong> Before, the page held the newest 200 entries and nothing older could be reached from it. The CSV export (Enterprise) covers the whole range selected, not the page on screen.</p>
+
+<p><strong>Changed — the images and vulnerabilities lists are read a page at a time.</strong> Their filters, search and sort run in the operator, and the counts above each table still cover everything. <code>GET /api/v1/images</code> and <code>GET /api/v1/vulnerabilities</code> page when given <code>limit</code> and <code>offset</code>, and return the whole list as before without them.</p>
+
+<p><strong>Added — a runtime policy can stop the pod an event came from.</strong> <code>stop_mode: immediate</code>, the default, kills the containers within about two seconds; <code>graceful</code> gives the pod its own termination grace period. It evicts through the API server, so a PodDisruptionBudget is honoured, needs <code>rbac.allowEnforce: true</code>, never touches the operator's own namespace, and every attempt is written to the audit log as <code>runtime_pod_stop</code> with the pod UID. See <a href="/runtime-events/#stopping-the-pod">stopping the pod</a>.</p>
+
+<p><strong>Added — write Falco rules in the console (beta).</strong> <strong>Falco &gt; Rules &gt; New rule</strong> edits a Falco rules file for the Falco version your cluster runs, validates it with that Falco in a one-off pod, saves each accepted text as a version, and publishes it to your own OCI registry as falcoctl's <code>rulesfile</code> artifact for your falcoctl to install and follow. Attestkeep never writes to Falco. See <a href="/runtime-events/">runtime events</a>.</p>
+
+<p><strong>Added — Falco can connect through Falcosidekick.</strong> <code>integrations.falco.connection: sidekick</code> takes events from Sidekick's webhook output with the same client certificate; <code>mtls</code>, the default, is Falco's own <code>http_output</code> as before. Each event records which one delivered it, and the console warns when that does not match the setting.</p>
+
+<p><strong>Added — when a licence covers fewer frameworks than were used, an administrator chooses which to keep.</strong> The choice is asked at sign-in, holds until the licence changes, and is audited; the others close for new packages, and packages already generated stay downloadable. See <a href="/licensing/">licensing</a>.</p>
+
+<p><strong>Added — Settings &gt; Backup lists every configuration export and import</strong>, with who, when and what the bundle carried. The bundle itself is not kept.</p>
+
+<p><strong>Added — the dashboard has a Nodes card</strong>: Ready nodes against the node ceiling, beside the image quota.</p>
+
+<p><strong>Fixed — after a licence lapsed, the usage screens could show the allowance it had earlier in the month.</strong> Admission applied the Community allowance while the dashboard and the Usage and Licence page still showed the paid one. The current month is now read against the licence in force; earlier months keep the allowance they had.</p>
+
+<p><strong>Fixed — after a licence lapsed, every framework already used stayed open for new packages.</strong> They now wait for the administrator's choice above.</p>
+
+<p><strong>Fixed — a runtime alert sent nowhere was counted as notified.</strong> With no channel receiving it, the evidence package's count of alerts sent included it. An alert is now recorded as notified only when an enabled channel receives it.</p>
+
+<p><strong>Fixed — the message and the issue for a runtime alert said the pod was still running when the policy had stopped it.</strong></p>
+
+<p><strong>Fixed — the dashboard's Recently blocked admissions listed allowed admissions too.</strong> It now lists refusals only, and older refusals are no longer pushed out by recent allowed ones.</p>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 1.3.1 \
+  --namespace attestkeep --wait</code></pre>
+
 <h2>v1.3.0</h2>
 
 <p>2026-10-01.</p>

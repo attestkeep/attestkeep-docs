@@ -17,6 +17,40 @@ curl -sO https://docs.attestkeep.com/cosign.pub
 cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:0.3.5
 ```
 
+## 1.3.1 — 2026-10-03
+
+**Changed — remove `runtime.enforceBlocks` from your policy files: runtime blocks are gone.** The policy resource no longer has a `runtime` field, and `kubectl apply` with its default strict validation refuses a policy that still carries it with `unknown field "spec.runtime"`. Nothing at runtime changes an admission decision any more. A runtime rule written as `block` becomes `notify` with an issue on, by migration 0031, and the API refuses `block`. To act on a running pod, use `stop` below.
+
+**Changed — upgrading from 1.3.0 applies migrations 0026 to 0032 on first start, and they move forward only.** `helm upgrade --reuse-values` works across the version: `integrations.falco.connection` is read with its default, `mtls`. A return to 1.3.0 is a restore from backup, as the upgrade page says.
+
+**Changed — a new notification channel is subscribed to `runtime_alert`.** Only events a runtime policy chose to notify about reach a channel, and a channel added after the policy used to miss them. Existing channels keep their subscriptions.
+
+**Changed — the audit log shows the last month by default, a page at a time, with a date range for anything older.** Before, the page held the newest 200 entries and nothing older could be reached from it. The CSV export (Enterprise) covers the whole range selected, not the page on screen.
+
+**Changed — the images and vulnerabilities lists are read a page at a time.** Their filters, search and sort run in the operator, and the counts above each table still cover everything. `GET /api/v1/images` and `GET /api/v1/vulnerabilities` page when given `limit` and `offset`, and return the whole list as before without them.
+
+**Added — a runtime policy can stop the pod an event came from.** `stop_mode: immediate`, the default, kills the containers within about two seconds; `graceful` gives the pod its own termination grace period. It evicts through the API server, so a PodDisruptionBudget is honoured, needs `rbac.allowEnforce: true`, never touches the operator's own namespace, and every attempt is written to the audit log as `runtime_pod_stop` with the pod UID.
+
+**Added — write Falco rules in the console (beta).** Falco > Rules > New rule edits a Falco rules file for the Falco version your cluster runs, validates it with that Falco in a one-off pod, saves each accepted text as a version, and publishes it to your own OCI registry as falcoctl's `rulesfile` artifact for your falcoctl to install and follow. Attestkeep never writes to Falco.
+
+**Added — Falco can connect through Falcosidekick.** `integrations.falco.connection: sidekick` takes events from Sidekick's webhook output with the same client certificate; `mtls`, the default, is Falco's own `http_output` as before. Each event records which one delivered it, and the console warns when that does not match the setting.
+
+**Added — when a licence covers fewer frameworks than were used, an administrator chooses which to keep.** The choice is asked at sign-in, holds until the licence changes, and is audited; the others close for new packages, and packages already generated stay downloadable.
+
+**Added — Settings > Backup lists every configuration export and import**, with who, when and what the bundle carried. The bundle itself is not kept.
+
+**Added — the dashboard has a Nodes card**: Ready nodes against the node ceiling, beside the image quota.
+
+**Fixed — after a licence lapsed, the usage screens could show the allowance it had earlier in the month.** Admission applied the Community allowance while the dashboard and the Usage and Licence page still showed the paid one. The current month is now read against the licence in force; earlier months keep the allowance they had.
+
+**Fixed — after a licence lapsed, every framework already used stayed open for new packages.** They now wait for the administrator's choice above.
+
+**Fixed — a runtime alert sent nowhere was counted as notified.** With no channel receiving it, the evidence package's count of alerts sent included it. An alert is now recorded as notified only when an enabled channel receives it.
+
+**Fixed — the message and the issue for a runtime alert said the pod was still running when the policy had stopped it.**
+
+**Fixed — the dashboard's Recently blocked admissions listed allowed admissions too.** It now lists refusals only, and older refusals are no longer pushed out by recent allowed ones.
+
 ## 1.3.0 — 2026-10-01
 
 **Changed — activation now requires a certificate that carries the node ceiling; re-activate with a key issued by licence service 1.3.0 or later.** A 1.3.0 operator refuses, at online and at offline activation, a certificate without the node ceiling, with "re-activate with a key issued by licence service 1.3.0 or later".

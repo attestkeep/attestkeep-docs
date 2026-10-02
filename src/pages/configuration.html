@@ -63,7 +63,7 @@
 
 <h2>Runtime events (Falco)</h2>
 
-<p>Attestkeep does not ship, install or run Falco. Your own Falco sends its alerts straight to the operator from its <code>http_output</code>, over mutual TLS: the operator issues Falco a client certificate and accepts events only from it. An event changes an admission decision only through a runtime block, and only under a policy with <code>runtime.enforceBlocks: true</code> (default <code>false</code>). The Falco side, the certificates and what the events then do are on <a href="/runtime-events/">Runtime events</a>.</p>
+<p>Attestkeep does not ship, install or run Falco, and never writes to it. Your own Falco sends its alerts to the operator over mutual TLS, from its own <code>http_output</code> or through Falcosidekick (<code>integrations.falco.connection</code>): the operator issues a client certificate and accepts events only from it. An event never changes an admission decision; a runtime policy can send it on, open an issue and stop the pod it came from. The Falco side, the certificates and what the events then do are on <a href="/runtime-events/">Runtime events</a>.</p>
 
 <div class="table-wrap">
 <table>

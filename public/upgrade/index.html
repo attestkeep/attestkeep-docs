@@ -116,6 +116,18 @@
 
 <p>Each migration is recorded when it runs, so it runs exactly once no matter how many replicas start at the same time. Findings, decisions, exceptions and evidence survive the upgrade; nothing is rebuilt from scratch.</p>
 
+<h2>1.3.0 to 1.3.1</h2>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 1.3.1 \
+  --namespace attestkeep --wait</code></pre>
+
+<p>Migrations <code>0026</code> to <code>0032</code> are applied on the first start of the new version. They move forward only: a return to 1.3.0 is a restore from backup, not a <code>helm rollback</code>.</p>
+
+<p><strong>Remove <code>runtime.enforceBlocks</code> from your policy files.</strong> Runtime blocks are gone in 1.3.1 and the policy resource no longer has a <code>runtime</code> field. <code>kubectl apply</code>, with its default strict validation, refuses a policy that still carries it with <code>unknown field "spec.runtime"</code>. A runtime rule written as <code>block</code> becomes a <code>notify</code> rule with an issue on, by the migration; nothing at runtime changes an admission decision any more. To act on a pod, give a runtime policy <code>stop</code>, which needs <code>rbac.allowEnforce: true</code>; see <a href="/runtime-events/#stopping-the-pod">stopping the pod</a>.</p>
+
+<p><code>helm upgrade --reuse-values</code> works across this version: <code>integrations.falco.connection</code> is read with its default, <code>mtls</code>, so a Falco connected directly keeps arriving as before. Existing notification channels keep their subscriptions; only a channel created from 1.3.1 on is subscribed to <code>runtime_alert</code> by default.</p>
+
 <h2>1.2.x to 1.3.0</h2>
 
 <pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \

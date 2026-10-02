@@ -97,6 +97,12 @@ docker.io/library/postgres:16  ─┴─ one image against the quota</code></pre
   <figcaption>The console's <strong>Usage and Licence</strong> page shows both dates side by side. <strong>Expires</strong> is when the subscription ends; <strong>Certificate valid until</strong> is the runway the daily check keeps topped up. A certificate date that stops moving is the first sign of a blocked route out — visible here, well before the licence would lapse.</figcaption>
 </figure>
 
+<h2>When a licence ends</h2>
+
+<p>When the subscription ends and the certificate runs out, when the certificate stops verifying or turns out to be bound to another cluster, or when you deactivate it, the installation carries on as Community Edition, whatever plan it had: 1 cluster, 1 framework, 10 image names a month and 1 node per cluster. Nothing is downloaded and no new certificate is issued for it; scanning, admission and evidence keep working. The Usage and Licence page and the dashboard show the Community allowance for the current month from that moment, the same numbers admission applies; earlier months keep the allowance they had. An expired certificate is kept on the cluster, because it is what a renewal presents.</p>
+
+<p><strong>Frameworks.</strong> If evidence has been generated for more frameworks than the licence now covers, the next owner or administrator to sign in is asked which to keep, up to the licence's count. Until someone chooses, none of the frameworks used is open for a new package; other users are told an administrator has to choose. The frameworks not kept close for new packages, and every package already generated stays downloadable. The choice holds until the licence changes plan or framework count, and it is written to the audit log.</p>
+
 <h2>Cluster slots</h2>
 
 <p>Each activation holds a slot until it is released. You release one yourself, from <a href="https://attestkeep.com/app/licenses">your licences page</a> — deleting a cluster should not mean opening a support ticket to reuse the slot you paid for.</p>
