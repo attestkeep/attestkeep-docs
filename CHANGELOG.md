@@ -14,8 +14,14 @@ that cannot reach the transparency log. Verify the digest, not the tag.
 
 ```sh
 curl -sO https://docs.attestkeep.com/cosign.pub
-cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:1.3.2
+cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:1.3.3
 ```
+
+## 1.3.3 — 2026-10-07
+
+**Fixed — on a fresh install, or an upgrade that brings a migration, a webhook or scanner pod could restart once before settling.** The replicas start together and each applied the database migrations; two of them raced on the same step, the loser exited with a `duplicate key` error and came back a few seconds later with everything in place. The migrations now run under a database lock, so the first replica applies them and the others wait and find them done. Nothing was lost before, and nothing changes in a running installation; the restart count on day one is now zero.
+
+No migrations and no new chart values.
 
 ## 1.3.2 — 2026-10-03
 
