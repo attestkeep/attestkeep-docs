@@ -419,7 +419,7 @@ falco:
 <h3>Console</h3>
 
 <ul>
-  <li><strong>Falco &gt; Events</strong> lists events with the policy that matched and its action. Filters: free text (rule, pod, container, output), priority, action, Falco rule, tag, namespace, pod and policy, over a time range. Results are shown a page at a time. The detail view shows Falco's output, tags, output fields and whether a message was sent.</li>
+  <li><strong>Falco &gt; Events</strong> lists events with the policy that matched and its action. Filters: free text (rule, pod, container, output), priority, what the policy was set to do (Allow, Record, Notify, Open an issue, Stop the pod), Falco rule, tag, namespace, pod and policy, over a time range. Results are shown a page at a time. The detail view shows Falco's output, tags, output fields and whether a message was sent.</li>
   <li><strong>Falco &gt; Rules</strong> lists the Falco rules the operator knows: the 25 stable rules from <code>falcosecurity/rules</code> that ship with it, the rules from your saved files, and rule names seen in events.</li>
   <li>The images list gets a <strong>Runtime</strong> column with each image's event count for the last 7 days and a link to an open runtime issue. The column appears only after the operator has stored at least one event.</li>
   <li>An image's detail panel lists its last 20 events: time, priority, rule, namespace and pod, and Falco's output line.</li>

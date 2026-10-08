@@ -8,7 +8,7 @@
 
 <h2>The security overview</h2>
 
-<p>The dashboard is the posture of one cluster at a glance: operator health, the admission webhook's state, the database, and the vulnerability feed — then the counts that matter, image coverage, what was blocked, where you stand against your monthly image band, and the cluster's Ready nodes against its node ceiling. The admissions table below lists the most recent refusals.</p>
+<p>The dashboard is the posture of one cluster at a glance: operator health, the admission webhook's state, the database, and the vulnerability feed — then the counts that matter, image coverage, what was blocked, where you stand against your monthly image band, and the cluster's Ready nodes against its node ceiling. The vulnerability tile shows when the database Trivy ships was built and when the scanner last checked for a newer one; it checks every six hours on its own, and an administrator can press <strong>Update now</strong> to have it download at once and say whether anything changed. The admissions table below lists the most recent refusals.</p>
 
 <figure class="shot">
   <img src="/img/manual/04-dashboard.png" alt="The security overview: health tiles across the top, coverage and quota counts below, a severity trend and a compliance donut." loading="lazy" />
