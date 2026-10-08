@@ -49,7 +49,7 @@ docker.io/library/postgres:16  ─┴─ one image against the quota</code></pre
 
 <h3 id="node-ceiling">The node ceiling</h3>
 
-<p>The operator counts the cluster's Ready nodes inside the cluster, every <code>nodes.pollInterval</code> (5 minutes by default). The count is never sent anywhere; the daily check carries the same three values as before. The ceiling itself is in the certificate.</p>
+<p>The operator counts the cluster's Ready nodes inside the cluster, every <code>nodes.pollInterval</code> (5 minutes by default). The count is never sent anywhere; the daily check carries the same values as before. The ceiling itself is in the certificate.</p>
 
 <p>Going over the ceiling stops nothing. The console and a notification say so, with the date 14 days ahead (<code>nodes.graceDays</code>). If the cluster is still over the ceiling when those 14 days have run out, <strong>only image names not yet seen this period are denied at admission</strong>, exactly as at the image limit. Everything already counted this period keeps running and keeps being scanned and enforced, and a denied name is not counted. Coming back within the ceiling — fewer nodes, or more nodes on the licence — clears the clock at once. A poll that cannot count the nodes changes nothing.</p>
 
@@ -72,7 +72,7 @@ docker.io/library/postgres:16  ─┴─ one image against the quota</code></pre
 
 <h2>The daily check</h2>
 
-<p>Once a day the operator sends three values — licence id, cluster fingerprint, operator version — signed with the keypair from activation. The answer is a status, and a fresh certificate only when something changed or the current one is running out.</p>
+<p>Once a day the operator sends the licence id, the cluster fingerprint and the operator version, signed with the keypair from activation, and with them the public half of the key this cluster signs evidence packages with — so that the licence service can vouch for that key to an auditor, see <a href="/verifying-reports/">Verifying reports</a>. If the key cannot be read that day it is simply left out and the service keeps the one it holds. Nothing else is in the request unless you switch on the optional ledger anchor (<code>LICENSE_LEDGER_ANCHOR</code>, off by default), which adds the hash of the newest ledger checkpoint and nothing about what it seals. The answer is a status, and a fresh certificate only when something changed or the current one is running out.</p>
 
 <p>Nothing about your images, your workloads, your policies or your findings is sent. There is no telemetry channel and no setting that would add one.</p>
 
