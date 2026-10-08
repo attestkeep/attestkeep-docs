@@ -14,8 +14,44 @@ that cannot reach the transparency log. Verify the digest, not the tag.
 
 ```sh
 curl -sO https://docs.attestkeep.com/cosign.pub
-cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:1.3.3
+cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:1.3.5
 ```
+
+## 1.3.5 — 2026-10-08
+
+A hotfix for what the first 1.3.4 installations showed on screen. Nothing changes in admission or scanning.
+
+**Fixed — a policy written with `kubectl` and no SLA or triage durations opened in the editor as `0s`, with What-if greyed out and nothing marked.** The form now proposes the defaults the New policy form uses, the diff shows `0s` becoming that default, and a field that fails validation is marked on the form when it loads and when What-if or Apply is clicked.
+
+**Fixed — a Falco policy set to Stop the pod was labelled Notify in the Policies list, in Events and in the evidence package.** It is now labelled Stop the pod everywhere, and a policy that only opens an issue is labelled as such. `report.json` carries `runtime.rules[].effect` and `runtime.decisions[].policy_effect`: the action the policy was set to take. Whether the stop went through is the `runtime_pod_stop` row in `runtime.audit_entries`, as before.
+
+**Fixed — a pod stop by a runtime policy appeared in the evidence package as `user:unresolved`.** It is now written as `policy:<name>`, and is no longer counted among the rows that could not be tied to an account.
+
+**Fixed — the dashboard, Settings › About and the evidence package named the cluster after the first node instead of the chart's `clusterName`.** The chart value is now used wherever a cluster name is shown; the node name is the fallback when it is empty.
+
+**Fixed — the Audit Log showed times in UTC while every other page uses your local time.** The page now uses local time; the CSV export keeps its ISO timestamps.
+
+**Fixed — three layout defects.** The Images table ran off the page at 1600 px; the runtime decisions table in the console's package view hid its last columns; the Stop the pod policy form needed scrolling on a 1366×768 screen. The dashboard's operator uptime now shows minutes under an hour instead of `0h`.
+
+**Changed — the Vulnerability DB tile no longer reports a next update as overdue.** The operator refreshes the database and the KEV catalogue every six hours on its own; the tile now shows when it last checked, next to the build date of the database Trivy ships. Administrators get an Update now button on the tile. It asks the scanner to download at once and reports whether the database changed, was already current, or the download failed and why; the request is recorded in the Audit Log as `vulnerability_db_refresh`. A refresh that fails on its own is shown on the tile too.
+
+**Changed — the Admission webhook tile no longer compares review latency with a fixed budget.** The average and p99 of the last 24 hours are still shown. The first review of an image resolves its digest at the registry and takes longer than later reviews, which answer from cache.
+
+No migrations and no new chart values.
+
+## 1.3.4 — 2026-10-08
+
+**Fixed — the break-glass section of an evidence package read its details from the policy as it stood when the package was generated.** Once a break-glass window had been switched off, a package covering it listed the activation with the approver, reason and incident reference blank and the window end taken from the current policy. Each activation is now read from the policy revision its admissions were decided under, so the package says what was approved at the time. Regenerate any package that covers a past break-glass window to get the full record.
+
+**Fixed — triage decisions in the evidence package reported severity `UNKNOWN` for every CVE.** The severity now comes from the scan findings; a CVE recorded at more than one severity reports the highest.
+
+**Fixed — the admission section in the console's package view counted grouped rows as denials and left time, namespace and pod empty.** The count is now the number of refused reviews, and each row carries the time, namespace and pod of its record.
+
+**Fixed — an image admitted under break-glass kept showing its earlier refusal, so the dashboard's break-glass share stayed at zero.** The images list and the dashboard now show the latest verdict any review of that image recorded.
+
+**Fixed — opening a policy in the editor showed a one-line diff with nothing changed.** Durations such as `168h0m0s` and `168h` are now compared in one form.
+
+No migrations and no new chart values.
 
 ## 1.3.3 — 2026-10-07
 
