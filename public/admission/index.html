@@ -105,7 +105,7 @@
 <h2>How a decision is made</h2>
 
 <ol>
-  <li>The API server asks about a pod.</li>
+  <li>The API server asks about a pod — when it is created or updated, and also when a debug container is added to a running one with <code>kubectl debug</code>, which goes through the <code>pods/ephemeralcontainers</code> subresource. Only the container being added is decided; the pod's existing containers are not re-reviewed, and a debug image is scanned and held to the policy but not counted against the monthly image allowance. Its ledger row says so in its reason.</li>
   <li>The tag is resolved to a digest. That resolution is cached for a minute, so a burst of identical deployments makes one registry call rather than a hundred.</li>
   <li>The digest's scan result and signature verdict are read from cache.</li>
   <li>The policy is evaluated against them and the answer is allow or deny, with a reason.</li>

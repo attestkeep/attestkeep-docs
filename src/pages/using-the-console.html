@@ -24,6 +24,12 @@
   <figcaption>Each row states the mode, the namespaces it covers, the rule summary, and the supply-chain checks it requires. The banner at the top is <strong>break-glass</strong> in force on one policy — enforcement suspended for a named incident, with who approved it, the incident reference, and when it expires. That is the same override that later shows up in the evidence package.</figcaption>
 </figure>
 
+<p>Every row also has <strong>What if</strong>. For a policy in audit mode it opens the editor with the draft switched to enforce and replays the last thirty days at once, so the answer to "what would enforcing this stop" is one click away; for a policy already enforcing it replays the policy as it stands, which shows the admissions that would be refused today because their scan results have changed. Nothing is applied. Every replay is kept for ninety days and listed under <strong>Security › What-if history</strong>, where it can be viewed again, downloaded as a PDF or JSON projection, or re-opened in the editor with <strong>Apply this draft</strong>. The details are on <a href="/policies-whatif/">Try a policy before enforcing it</a>. Leaving the editor with unsaved changes asks before discarding them.</p>
+
+<h2>Images — one state per image</h2>
+
+<p>The Images page sorts every image into exactly one of four states, so the tiles add up to the list: <strong>Blocked</strong> (its last admission was refused), <strong>Unscanned</strong> (admitted, no scan record yet), <strong>Compliant</strong> (admitted, scanned, within the policy) and <strong>Not compliant</strong> (admitted and scanned but outside the policy — typically under an audit-mode policy or a break-glass window). When more than one applies, the first in that order wins; the filter and the tiles use the same rule.</p>
+
 <h2>Vulnerabilities</h2>
 
 <p>Every finding across your images, grouped by CVE, with the installed and fixed versions side by side and how many images each affects. The filters narrow by severity, by whether a fix exists, and by triage state, so a view like "critical, fixable, untriaged" is three filters, not a scroll through everything. The list is read 25 CVEs at a time: the filters, the search and the sort run in the operator, and the counts above the table cover every finding. The images list works the same way.</p>

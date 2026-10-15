@@ -9,14 +9,31 @@
 <p>That is why installations sit in Audit for months: the operator cannot see what switching would cost, so they never switch. The replay answers it from the cluster's own records. Every admission review is already in the ledger; a draft policy is decided against those rows again, by the same code the admission webhook runs, and the differences are reported before anything is saved.</p>
 
 <div class="note">
-  <p><strong>Nothing is written.</strong> No pod is affected, no scan is queued, no registry is contacted, and the licence meter is not touched. The one trace it leaves is an audit-log entry (<code>policy_whatif</code>, "replayed a draft policy") and a counter, <code>attestkeep_policy_whatif_runs_total</code>.</p>
+  <p><strong>Nothing is applied.</strong> No pod is affected, no scan is queued, no registry is contacted, and the licence meter is not touched. What it leaves behind is the run itself — kept for ninety days when a deployer or an administrator ran it, so it can be viewed, downloaded and compared later; a viewer's replay is answered but not kept — an audit-log entry (<code>policy_whatif</code>, "replayed a draft policy", naming the run) and a counter, <code>attestkeep_policy_whatif_runs_total</code>.</p>
 </div>
 
 <h2>In the console</h2>
 
 <p>Policy editor → <strong>What if</strong>, beside <em>Apply to cluster</em>. Pick a period — 7, 30 or 90 days — and press it. The button is disabled while the form has errors: the draft goes through the same validation a save does, so a draft that cannot be tried is a draft that cannot be applied.</p>
 
-<p>The panel reports three figures — unchanged, would be denied, would be allowed — the gate behind each difference, and up to two hundred of the changed admissions, most recent first.</p>
+<p>The panel reports three figures — unchanged, would be denied, would be allowed — the gate behind each difference, and up to two hundred of the changed admissions, most recent first. The stored run keeps up to two thousand changed rows and five hundred unscanned digests, and says when either cap cut (<code>samples_capped</code>, <code>unscanned_capped</code>).</p>
+
+<p>Two shortcuts on the policies list: <strong>What if</strong> on an audit-mode policy opens the editor with the draft switched to enforce and replays the last thirty days immediately; on an enforcing policy it replays the policy as it stands, which surfaces admissions that would be refused today because their scan results have moved. Nothing is applied either way.</p>
+
+<p>If some images in the period have no scan record, the panel says so — "N images have no scan record" — and offers <strong>Scan now</strong> (deployer and above), which queues scans for exactly those digests, five hundred per request. The replay is not re-run on its own; press What if again once the scans have finished. Until then those rows are decided the way admission treats a cold digest under the draft's <code>admissionTiming</code>.</p>
+
+<h2>History and downloads</h2>
+
+<p><strong>Security › What-if history</strong> lists every run of every policy: when, by whom, the source policy, the period, how many admissions were reviewed and how many would be denied or allowed, and how many images were unscanned. It can be filtered by policy and period. Each run can be viewed again (the same panel, from the stored result), downloaded, or — for an administrator — opened in the editor with <strong>Apply this draft</strong>, which loads the stored draft without applying it — the diff is then shown against the policy as it is today.</p>
+
+<p>The download is a <strong>projection, not evidence</strong>. The PDF carries that band on every page and is neither signed nor sealed; a run never enters an evidence package, because the package records what happened and a replay records what would have. The audit log records each download (<code>policy_whatif_download</code>).</p>
+
+<pre><code>GET /api/v1/policies/whatif/runs?policy=&lt;name&gt;&amp;days=&lt;7|30|90&gt;&amp;limit=&amp;offset=
+GET /api/v1/policies/whatif/runs/{id}
+GET /api/v1/policies/whatif/runs/{id}/download?format=pdf|json
+POST /api/v1/images/scan            {"digests": ["sha256:…"]}   # Scan now; at most 500</code></pre>
+
+<p>At most five hundred runs are kept; a new one past that removes the oldest, and runs older than ninety days are deleted by the operator's hourly sweep. One account may start at most ten replays a minute on each operator replica; the eleventh is answered with <code>429</code> and a <code>Retry-After</code>.</p>
 
 <h2>The request</h2>
 
@@ -24,6 +41,7 @@
 
 <pre><code>{
   "policy": { "...": "the same body POST/PUT /api/v1/policies accept" },
+  "source": "the policy the draft was edited from (must exist), empty for a new one",
   "days": 30
 }</code></pre>
 
@@ -35,6 +53,7 @@
 <table>
   <thead><tr><th>Field</th><th>What it is</th></tr></thead>
   <tbody>
+    <tr><td><code>kept</code> / <code>run_id</code></td><td>Whether the run was stored and, if so, its id; the audit entry and the history page name it. A viewer's replay is not kept.</td></tr>
     <tr><td><code>evaluated</code></td><td>Ledger rows the draft was decided against.</td></tr>
     <tr><td><code>distinct_images</code></td><td>How many distinct digests those rows cover.</td></tr>
     <tr><td><code>break_glass_skipped</code></td><td>Bypassed admissions, counted apart and not replayed: a bypass decided them, not a policy.</td></tr>
@@ -42,7 +61,9 @@
     <tr><td><code>unchanged</code> / <code>would_deny</code> / <code>would_allow</code></td><td>The three figures the panel shows.</td></tr>
     <tr><td><code>would_deny_by_reason</code></td><td>Keyed by the labels <code>attestkeep_admission_denials_total</code> uses — <code>threshold</code>, <code>known_exploited</code>, <code>provenance</code>, <code>registry</code>, <code>tag</code>, <code>digest</code>, <code>signature</code>, <code>attestation</code>, <code>unscanned</code>, <code>end_of_life</code>, <code>quota</code>, <code>context</code>.</td></tr>
     <tr><td><code>would_allow_by_reason</code></td><td>Keyed by the <strong>original</strong> denial's label, recovered from the recorded reason. <code>other</code> when it cannot be recovered — the ledger stores the sentence a deployer was shown, not the label the metric carried.</td></tr>
-    <tr><td><code>samples</code></td><td>Only the changed rows, most recent first, at most 200. The reason is the draft's own sentence.</td></tr>
+    <tr><td><code>samples</code></td><td>Only the changed rows, most recent first, at most 200. The reason is the draft's own sentence. The stored run keeps all of them.</td></tr>
+    <tr><td><code>unscanned</code> / <code>unscanned_total</code></td><td>Distinct images in the period with no scan record, each with its digest — what <strong>Scan now</strong> queues — and their full count.</td></tr>
+    <tr><td><code>notes</code></td><td>The three caveats, stated rather than implied: rows are decided against today's scan record, the licence meter is not replayed, and audit-mode denials are recorded as allows.</td></tr>
     <tr><td><code>context</code></td><td>What the draft's <a href="/policies-context/"><code>deploymentContext</code></a> gate would touch: its effective mode, how many replayed <strong>rows</strong> carried each of the six signals (every signal is a key, even at zero), and <code>escalated_denials</code> — refusals that happened only because of where the pod ran. <code>rows_without_context</code> counts rows recorded before migration <code>0020</code>, which replay with no context at all; above zero it comes with a note saying so, because an empty array cannot tell "carried no signals" from "nobody was looking".</td></tr>
   </tbody>
 </table>

@@ -14,8 +14,34 @@ that cannot reach the transparency log. Verify the digest, not the tag.
 
 ```sh
 curl -sO https://docs.attestkeep.com/cosign.pub
-cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:1.3.6
+cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:1.3.7
 ```
+
+## 1.3.7 — 2026-10-15
+
+**Fixed — the operator is now built with Go 1.26.9 and `golang.org/x/net` 0.60.0.** Both close published vulnerabilities in HTTP/2, HTTP/1, TLS and HTML template code that the operator reaches, among them a crash of the HTTP/2 server. 1.3.6 and earlier carry `golang.org/x/net` 0.58.0; upgrade to take the fixed versions.
+
+**Fixed — a container added to a running pod with `kubectl debug` was never sent to the admission webhook, whatever image it ran.** The webhook now also receives the `pods/ephemeralcontainers` subresource. Only the container being added is decided: its image is scanned and held to the policy, and an enforcing policy refuses it like any other image. The pod's existing containers are not reviewed again. A debug image is not counted against the monthly image allowance or the node ceiling, and its ledger row's reason ends in `; subresource ephemeralcontainers`. If your team uses `kubectl debug` with images the policy does not allow, those requests are refused from this version on. The rule is part of the chart, so it takes effect through `helm upgrade`; replacing the image alone does not add it.
+
+**Fixed — the Images tiles added up to more than the list.** An image refused at admission and never scanned was counted under both Blocked and Unscanned. Each image is now in exactly one state, and the first that applies wins: Blocked (its last admission review was refused), Unscanned, Compliant, Not compliant. Not compliant is a new tile: admitted and scanned but outside the policy, typically under an audit-mode policy or a break-glass window. The dashboard's Compliant and Blocked figures follow the same rule, so the two pages agree. An unknown `filter=` on `GET /api/v1/images` is now answered with `400` naming the four states.
+
+**Fixed — an image admitted under an audit-mode policy before its first scan, and found to carry criticals afterwards, was shown as Blocked although no review had refused it.** Blocked now follows the last admission review, not the verdict the scanner reaches later. Such an image is Not compliant, and its detail reads "Admitted; the next admission would be denied". The last review is filled in from the ledger on upgrade for images recorded with a digest; an image recorded by tag only takes it at its next review.
+
+**Added — What-if replays are kept, listed and downloadable.** A replay run by a deployer or an administrator is stored for ninety days, at most five hundred runs, and listed under Security › What-if history, filtered by policy and period. Each run can be viewed again, downloaded as PDF or JSON, or, by an administrator, opened in the editor with Apply this draft, which loads the stored draft and applies nothing. The download is a projection, not evidence: the PDF says so on every page, is neither signed nor sealed, and a run never enters an evidence package. Downloads are recorded in the Audit Log as `policy_whatif_download`. A viewer can still replay; the answer is shown and not kept. See [Try a policy before enforcing it](https://docs.attestkeep.com/policies-whatif/).
+
+**Added — What if on every row of the policies list.** An audit-mode policy is replayed as if it were enforcing, an enforcing policy as it stands, over the last thirty days, with the result open in the editor. Nothing is applied.
+
+**Added — Scan now for the images a replay found unscanned.** The What-if result names the images in the period that have no scan record. Deployers and administrators can queue scans for exactly those digests (`POST /api/v1/images/scan`, at most 500 per request, recorded in the Audit Log as `rescan`). The replay is not re-run on its own; press What if again once the scans have finished.
+
+**Added — the policy editor asks before Cancel discards unsaved changes.**
+
+**Changed — `POST /api/v1/policies/whatif` takes an optional `source`, the policy the draft was edited from (an unknown name is `400`), and answers with `kept`, `run_id`, `unscanned`, `unscanned_total` and `notes`.** One account may start at most ten replays a minute on each operator replica; the next is answered with `429` and `Retry-After`.
+
+**Changed — Apply to cluster is shown in the policy editor only to accounts that may write policies.** Everyone else keeps the What-if result, Download and Copy for git.
+
+**Changed — framework names in the evidence list and in compliance reports come from one list**, so the two always name a framework the same way.
+
+**Changed — upgrading applies migrations 0033 to 0035 on first start, and they move forward only.** 0033 adds the table that keeps What-if runs, 0034 adds two columns to the images table, 0035 fills them from the ledger. A return to 1.3.6 is a restore from backup, not a `helm rollback`. No new chart values; `helm upgrade --reuse-values` works across this version.
 
 ## 1.3.6 — 2026-10-08
 
