@@ -75,6 +75,7 @@
       <li><a href="/policies-vex/">Producer statements (VEX)</a></li>
       <li><a href="/policies-context/">Deployment context</a></li>
       <li><a href="/policies-whatif/">Try a policy first</a></li>
+      <li><a href="/deny-list/">Deny list</a></li>
       <li><a href="/admission/">Admission</a></li>
       <li><a href="/air-gapped/">Air-gapped clusters</a></li>
       <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
@@ -86,6 +87,7 @@
     <ul>
       <li><a href="/runtime-events/">Runtime events (Falco)</a></li>
       <li><a href="/issue-trackers/">Issue trackers</a></li>
+      <li><a href="/siem/">SIEM export</a></li>
     </ul>
     <h2>Evidence and help</h2>
     <ul>
@@ -110,11 +112,23 @@
 <p>Pin the version if your change process needs it:</p>
 
 <pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
-  --namespace attestkeep --version 1.3.7 --wait</code></pre>
+  --namespace attestkeep --version 1.4.0 --wait</code></pre>
 
 <h2>What happens to the database</h2>
 
 <p>Each migration is recorded when it runs, so it runs exactly once no matter how many replicas start at the same time. Findings, decisions, exceptions and evidence survive the upgrade; nothing is rebuilt from scratch.</p>
+
+<h2>1.3.7 to 1.4.0</h2>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 1.4.0 \
+  --namespace attestkeep --wait</code></pre>
+
+<p>Migrations <code>0036</code> to <code>0046</code> are applied on the first start of the new version. They move forward only: a return to 1.3.7 is a restore from backup, not a <code>helm rollback</code>. Each migration that alters an existing table waits at most five seconds for its lock; past that it fails, the replica restarts and tries again.</p>
+
+<p>This one upgrade has a window of about a second per replica. A 1.3.7 replica stops without draining, so while the cluster stops routing to it, a request the API server sends it is admitted under <code>failurePolicy: Ignore</code>. To close it, run the upgrade with <code>--set webhook.failurePolicy=Fail</code>, which refuses such a request instead, and set it back afterwards with <code>helm upgrade</code> and <code>--set webhook.failurePolicy=Ignore</code> (or the value you run); or upgrade during a change freeze. From 1.4.0 on every upgrade drains: a stopping replica leaves the Service before it stops answering.</p>
+
+<p><code>helm upgrade --reuse-values</code> works across this version: the values 1.4.0 adds (<code>rbac.denyList.takedown</code>, <code>binscanLimits</code>, <code>scan.binscanTimeout</code>, <code>scan.tmpSizeLimit</code>, <code>scan.binscanDiskBudget</code>, <code>denyListWhatIfLimits</code>, <code>defaultPolicy.denyList</code>) are read with their defaults when absent, and take down stays off. The chart's ClusterRole gains <code>get</code> and <code>list</code> on Deployments, ReplicaSets, StatefulSets, DaemonSets, Jobs and CronJobs; it arrives with <code>helm upgrade</code>. An external database must be PostgreSQL 13 or later for SIEM export. Existing notification channels are not subscribed to Deny list hit; tick it where deny-list refusals should be told. See <a href="/releases/">the 1.4.0 notes</a>.</p>
 
 <h2>1.3.6 to 1.3.7</h2>
 

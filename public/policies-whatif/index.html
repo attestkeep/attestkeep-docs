@@ -75,6 +75,7 @@
       <li><a href="/policies-vex/">Producer statements (VEX)</a></li>
       <li><a href="/policies-context/">Deployment context</a></li>
       <li><a href="/policies-whatif/" aria-current="page">Try a policy first</a></li>
+      <li><a href="/deny-list/">Deny list</a></li>
       <li><a href="/admission/">Admission</a></li>
       <li><a href="/air-gapped/">Air-gapped clusters</a></li>
       <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
@@ -86,6 +87,7 @@
     <ul>
       <li><a href="/runtime-events/">Runtime events (Falco)</a></li>
       <li><a href="/issue-trackers/">Issue trackers</a></li>
+      <li><a href="/siem/">SIEM export</a></li>
     </ul>
     <h2>Evidence and help</h2>
     <ul>
@@ -129,7 +131,7 @@ GET /api/v1/policies/whatif/runs/{id}
 GET /api/v1/policies/whatif/runs/{id}/download?format=pdf|json
 POST /api/v1/images/scan            {"digests": ["sha256:…"]}   # Scan now; at most 500</code></pre>
 
-<p>At most five hundred runs are kept; a new one past that removes the oldest, and runs older than ninety days are deleted by the operator's hourly sweep. One account may start at most ten replays a minute on each operator replica; the eleventh is answered with <code>429</code> and a <code>Retry-After</code>.</p>
+<p>At most five hundred runs of each kind are kept — policy runs, and deny-list runs apart from them; a new one past that removes the oldest of its kind, and runs older than ninety days are deleted by the operator's hourly sweep. One account may start at most ten replays a minute on each operator replica; the eleventh is answered with <code>429</code> and a <code>Retry-After</code>.</p>
 
 <h2>The request</h2>
 

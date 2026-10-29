@@ -1,0 +1,188 @@
+<!--meta {
+  "title": "SIEM export",
+  "description": "Send Attestkeep's security events to your SIEM: Splunk, Microsoft Sentinel, QRadar, Elastic, Google SecOps, Sumo Logic, Wazuh and any HTTP collector, as attestkeep.event/v1 JSON."
+} -->
+
+<h1>SIEM export</h1>
+<p class="lede">Your SOC watches the SIEM, not this console. SIEM export sends Attestkeep's security events there as they happen — refused admissions, deny-list hits, runtime events, policy and triage changes, evidence downloads, failed sign-ins — so they sit on the same timeline as everything else you collect.</p>
+
+<p>Destinations are set up in the console, <strong>Settings › SIEM export</strong>. Everyone who signs in can see them and how each one is doing; adding, changing, testing and removing one is an administrator's.</p>
+
+<div class="note">
+  <p><strong>Nothing leaves unless you add a destination.</strong> Events go only where you point them, from your cluster to your SIEM. Without a destination nothing is exported, and adding one changes no admission decision.</p>
+</div>
+
+<h2>The event</h2>
+
+<p>Every event is one JSON object, schema <code>attestkeep.event/v1</code>. Each is a record the console already shows, and carries a <code>reference</code> to it.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>time</code></td><td>When it happened, RFC 3339 UTC with milliseconds. For a runtime event, when the detector saw it. Always present.</td></tr>
+    <tr><td><code>type</code></td><td>One of the types below. Always present.</td></tr>
+    <tr><td><code>severity</code></td><td><code>info</code>, <code>low</code>, <code>medium</code>, <code>high</code> or <code>critical</code>. Always present.</td></tr>
+    <tr><td><code>cluster</code></td><td>The chart's <code>clusterName</code>. Always present.</td></tr>
+    <tr><td><code>namespace</code>, <code>pod</code></td><td>Where it happened; empty for a cluster-wide event such as a policy change.</td></tr>
+    <tr><td><code>workload_kind</code>, <code>workload_name</code></td><td>The workload an admission was counted against: the Deployment above a Deployment's ReplicaSet, the CronJob above a Job, <code>Pod</code> for a pod nobody owns.</td></tr>
+    <tr><td><code>image</code>, <code>digest</code></td><td>The image reference and its digest.</td></tr>
+    <tr><td><code>policy</code></td><td>The policy that decided an admission, the runtime rule that decided a Falco event, or the policy a change was made to.</td></tr>
+    <tr><td><code>actor</code></td><td>Who: the console account's name as the audit log shows it, or the Kubernetes username as the admission ledger holds it; a runtime policy is <code>policy:&lt;rule&gt;</code>. A destination set to <em>pseudonymous</em> actor names gets <code>user:&lt;account id&gt;</code> and, for a Kubernetes username that is not a <code>system:</code> identity, <code>k8s-user:&lt;first 16 hex characters of its SHA-256&gt;</code>, as in the evidence package; a record written before account ids were kept reads <code>user:unresolved</code>.</td></tr>
+    <tr><td><code>outcome</code></td><td><code>denied</code>, <code>allowed</code>, <code>warned</code>, <code>success</code>, <code>failure</code>, <code>stopped</code>, <code>taken_down</code>, <code>blocked</code>, <code>pending</code>, <code>restored</code>, <code>found</code>, <code>expired</code>, or a runtime rule's action.</td></tr>
+    <tr><td><code>reason</code></td><td>The sentence Attestkeep recorded, at most 1,000 characters.</td></tr>
+    <tr><td><code>reference</code></td><td>The record it came from, <code>kind:id</code>. Unique per event and the same when an event is sent again: drop duplicates by it. Always present.</td></tr>
+    <tr><td><code>schema</code></td><td><code>attestkeep.event/v1</code>. Always present.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>An event never carries an SBOM, a list of findings, a credential, licence data, or what was typed in a failed sign-in.</p>
+
+<h3>Event types</h3>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Type</th><th>When</th><th>Severity</th></tr></thead>
+  <tbody>
+    <tr><td><code>admission.denied</code></td><td>A pod was refused.</td><td>high</td></tr>
+    <tr><td><code>admission.allowed</code></td><td>A pod was admitted. <strong>Off unless you tick it</strong>: it is most of the ledger.</td><td>info</td></tr>
+    <tr><td><code>admission.break_glass</code></td><td>A pod was admitted under an open break-glass.</td><td>high</td></tr>
+    <tr><td><code>denylist.denied</code></td><td>A deny-list entry matched a pod: <code>denied</code> where the policy enforces the list, <code>warned</code> (medium) where it audits it.</td><td>high</td></tr>
+    <tr><td><code>denylist.entry_added</code>, <code>denylist.entry_removed</code></td><td>An entry was added or lifted.</td><td>medium</td></tr>
+    <tr><td><code>denylist.whatif_run</code></td><td>Somebody ran What if for a deny-list entry.</td><td>info</td></tr>
+    <tr><td><code>denylist.takedown</code></td><td>An administrator took down a workload a deny-list entry catches. Outcome <code>taken_down</code>, <code>blocked</code> (a PodDisruptionBudget kept the pods), <code>failed</code>, or <code>pending</code>. A refused request (the chart key off, no admin role, a namespace admission does not review, a changed replica count) is not sent.</td><td>high</td></tr>
+    <tr><td><code>denylist.restored</code></td><td>A workload scaled to zero by a take down was put back. A refused restore is not sent.</td><td>medium</td></tr>
+    <tr><td><code>scan.finding_new</code></td><td>A scan reports a CRITICAL finding.</td><td>critical</td></tr>
+    <tr><td><code>scan.kev</code></td><td>A scan first sees a finding on CISA's Known Exploited Vulnerabilities list, on the image's first scan or a later one.</td><td>critical</td></tr>
+    <tr><td><code>runtime.event</code></td><td>Your Falco reported an event (severity from its priority).</td><td>info to critical</td></tr>
+    <tr><td><code>runtime.pod_stopped</code></td><td>A runtime policy stopped a pod.</td><td>high</td></tr>
+    <tr><td><code>policy.changed</code></td><td>A policy was created, changed or deleted, or break-glass was closed.</td><td>medium</td></tr>
+    <tr><td><code>policy.break_glass_opened</code></td><td>Break-glass was opened.</td><td>high</td></tr>
+    <tr><td><code>triage.decided</code>, <code>triage.expired</code></td><td>A finding was triaged or a triage withdrawn; an accepted risk lapsed.</td><td>low</td></tr>
+    <tr><td><code>evidence.generated</code>, <code>evidence.downloaded</code></td><td>An evidence package was generated or downloaded.</td><td>info</td></tr>
+    <tr><td><code>auth.login_failed</code>, <code>auth.role_changed</code></td><td>A sign-in failed; a user's role changed.</td><td>medium</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>A change the server refused is sent too, with outcome <code>failure</code>: an attempt to change a control is worth seeing.</p>
+
+<p><strong>Findings are sent once, when first seen.</strong> Attestkeep records the first scan that reported each finding of an image (digest, advisory, package and version). <code>scan.finding_new</code> is sent for that scan only; a rescan that reports the same finding sends nothing. <code>scan.kev</code> is sent once, by the first scan that sees the finding on the KEV list — often a later scan, since a CVE usually joins the list after the image was scanned. Findings that existed before 1.4.0 count as already seen.</p>
+
+<h3>Example</h3>
+
+<pre><code>{"time":"2026-10-25T09:30:00.123Z","type":"admission.denied","severity":"high",
+ "cluster":"prod-eu-1","namespace":"prod","pod":"api-7c9f5-x2k",
+ "workload_kind":"Deployment","workload_name":"api",
+ "image":"ghcr.io/acme/api:1.24.3","digest":"sha256:9f2a…","policy":"baseline",
+ "actor":"system:serviceaccount:kube-system:replicaset-controller","outcome":"denied",
+ "reason":"denied by deny list entry 30: digest sha256:9f2a…",
+ "reference":"admission:812","schema":"attestkeep.event/v1"}</code></pre>
+
+<h2>What each destination sends</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Destination</th><th>For</th><th>How</th></tr></thead>
+  <tbody>
+    <tr><td>HTTP (JSON)</td><td>Google SecOps, Sumo Logic, Exabeam, any HTTP collector</td><td>An HTTPS POST per batch: a JSON array, or one event per line. Optional gzip, two optional request headers for the collector's key, and an optional HMAC signature.</td></tr>
+    <tr><td>Splunk HEC</td><td>Splunk; CrowdStrike Falcon LogScale</td><td>HEC events with <code>time</code>, <code>host</code> (the cluster), <code>source</code> <code>attestkeep</code>, <code>sourcetype</code> <code>attestkeep:event</code> and an optional <code>index</code>.</td></tr>
+    <tr><td>Syslog</td><td>QRadar, ArcSight, Wazuh, Graylog, Securonix, Logsign</td><td>RFC 5424 over TLS (plain TCP for a receiver without TLS), with a CEF, LEEF or JSON body.</td></tr>
+    <tr><td>Elasticsearch</td><td>Elastic Security</td><td>The bulk API into an index or data stream, with an API key. Every document carries <code>@timestamp</code>.</td></tr>
+    <tr><td>Microsoft Sentinel</td><td>Microsoft Sentinel</td><td>The Logs Ingestion API through a data collection rule, with an Entra application.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Every destination must be reachable from the operator. Loopback and link-local addresses — the cloud metadata service among them — are refused; addresses inside your cluster and network are allowed. HTTP destinations must use <code>https://</code>; a receiver with a certificate from your own CA takes that CA in the form, added to the system roots. A redirect is followed only to the same scheme and host, at most three times, and never to a loopback or link-local address. Tokens, keys and secrets are stored encrypted with the installation's data key and never shown again: leave a field empty to keep it, or choose <strong>Replace</strong>.</p>
+
+<p><strong>Changing where a destination points removes its credentials.</strong> When an edit changes the URL, the endpoint, the syslog receiver, or for Sentinel the tenant, rule or stream, the stored token, key or secret is removed, so it is never sent to the new place unless you enter it there. The destination then reads <em>Credentials required</em> and sends nothing until they are entered; the audit log records which fields changed and the old and new host.</p>
+
+<p>The HMAC signature, when you set a secret, is the header <code>X-Attestkeep-Signature: sha256=&lt;hex&gt;</code>: HMAC-SHA256 of the request body exactly as sent (after gzip when gzip is on). Compute it over the bytes you received.</p>
+
+<h2>Setting up your SIEM</h2>
+
+<h3>Splunk</h3>
+<p>Enable HTTP Event Collector (Splunk Enterprise: <strong>Settings › Data Inputs › HTTP Event Collector › Global Settings</strong>; it is on by default on Splunk Cloud Platform) and create a token with the index it may write to. In Attestkeep: <strong>Splunk HEC</strong>, the endpoint <code>https://&lt;splunk&gt;:8088/services/collector/event</code>, the token, sent as <em>Splunk</em>. Search with <code>sourcetype="attestkeep:event"</code>. Splunk's reference: <a href="https://help.splunk.com/en/splunk-enterprise/get-started/get-data-in/9.4/get-data-with-http-event-collector/format-events-for-http-event-collector">Format events for HTTP Event Collector</a>.</p>
+
+<h3>CrowdStrike Falcon LogScale</h3>
+<p>Create an ingest token for the repository. In Attestkeep: <strong>Splunk HEC</strong>, the endpoint <code>https://&lt;logscale&gt;/api/v1/ingest/hec</code>, the token, sent as <em>Bearer</em>. The event arrives as a JSON object, so its fields are searchable without a parser. Reference: <a href="https://library.humio.com/logscale-api/log-shippers-hec.html">Ingesting with HTTP Event Collector</a>.</p>
+
+<h3>Microsoft Sentinel</h3>
+<p>Create a custom table <code>Attestkeep_CL</code> and a data collection rule whose stream (for example <code>Custom-Attestkeep_CL</code>) declares these columns: <code>TimeGenerated</code> (datetime) and, as strings, <code>event_type</code>, <code>time</code>, <code>severity</code>, <code>cluster</code>, <code>namespace</code>, <code>pod</code>, <code>workload_kind</code>, <code>workload_name</code>, <code>image</code>, <code>digest</code>, <code>policy</code>, <code>actor</code>, <code>outcome</code>, <code>reason</code>, <code>reference</code>, <code>schema</code>, with the transformation <code>source</code>. Register an Entra application with a client secret and give it the <strong>Monitoring Metrics Publisher</strong> role on the DCR. In Attestkeep: <strong>Microsoft Sentinel</strong>, the DCR's logs ingestion endpoint (or the data collection endpoint), the DCR's immutable id, the stream, the tenant id, the client id and the client secret. The event's type is sent as <code>event_type</code> because <code>Type</code> is a reserved column name. The Azure public cloud is supported. Reference: <a href="https://learn.microsoft.com/en-us/azure/azure-monitor/logs/logs-ingestion-api-overview">Logs Ingestion API in Azure Monitor</a>.</p>
+
+<h3>IBM QRadar</h3>
+<p>Add a log source that receives syslog over TLS (not verified against IBM's documentation; confirm the log source setup on your side). In Attestkeep: <strong>Syslog</strong>, the receiver's <code>host:port</code>, body <em>LEEF</em>. Events arrive as <code>LEEF:1.0|Attestkeep|Attestkeep|&lt;version&gt;|&lt;type&gt;|</code> with tab-separated attributes: <code>devTime</code> (epoch milliseconds), <code>sev</code> (1–10), <code>cat</code> (the type), <code>usrName</code> (the actor), <code>policy</code>, and <code>cluster</code>, <code>namespace</code>, <code>pod</code>, <code>workloadKind</code>, <code>workloadName</code>, <code>image</code>, <code>digest</code>, <code>outcome</code>, <code>reason</code>, <code>reference</code>. IBM's guide defines no escaping for attribute values; Attestkeep writes a tab, CR or LF inside a value as a space (not verified against QRadar; confirm on your side). Reference: IBM's <a href="https://www.ibm.com/docs/en/SS42VS_DSM/pdf/b_Leef_format_guide.pdf">Log Event Extended Format (LEEF)</a> guide.</p>
+
+<h3>ArcSight, Logsign, Securonix, Graylog</h3>
+<p>A syslog receiver over TLS. In Attestkeep: <strong>Syslog</strong>, body <em>CEF</em>. Events arrive as <code>CEF:0|Attestkeep|Attestkeep|&lt;version&gt;|&lt;type&gt;|&lt;name&gt;|&lt;severity 0–10&gt;|</code> with <code>rt</code>, <code>cat</code>, <code>outcome</code>, <code>reason</code>, <code>suser</code>, <code>deviceExternalId</code> (the cluster), <code>flexString1</code> (the workload) and <code>cs1</code>–<code>cs6</code> labelled namespace, pod, image, digest, policy and reference. Reference: <a href="https://www.microfocus.com/documentation/arcsight/arcsight-smartconnectors-8.4/pdfdoc/cef-implementation-standard/cef-implementation-standard.pdf">Implementing ArcSight Common Event Format</a>.</p>
+
+<h3>Wazuh</h3>
+<p>Add a syslog listener to the manager's <code>ossec.conf</code>, with the operator's address in <code>allowed-ips</code>:</p>
+<pre><code>&lt;remote&gt;
+  &lt;connection&gt;syslog&lt;/connection&gt;
+  &lt;port&gt;514&lt;/port&gt;
+  &lt;protocol&gt;tcp&lt;/protocol&gt;
+  &lt;allowed-ips&gt;10.0.0.0/8&lt;/allowed-ips&gt;
+&lt;/remote&gt;</code></pre>
+<p>The listener does not speak TLS, so in Attestkeep choose <strong>Syslog</strong>, <em>Plain TCP</em> on, framing <em>one message per line</em>, body <em>JSON</em>: Wazuh's JSON decoder reads the event's fields. Use it inside your own network only. Wazuh's documentation does not state the TCP framing it expects; one message per line is our choice for a line reader, not verified against Wazuh — if events do not arrive, check the framing first. Reference: <a href="https://documentation.wazuh.com/current/user-manual/capabilities/log-data-collection/syslog.html">Wazuh syslog collection</a>.</p>
+<p>Without a destination, a Wazuh agent on the nodes can also read the operator pods' container log files, where each line is an <code>attestkeep.log/v1</code> JSON object behind the container runtime's own prefix. Wazuh's JSON decoder skips such a prefix with <code>offset="after_prematch"</code> (<a href="https://documentation.wazuh.com/current/user-manual/ruleset/decoders/json-decoder.html">JSON decoder</a>); test a line from your nodes with <code>wazuh-logtest</code> before writing rules.</p>
+
+<h3>Elastic Security</h3>
+<p>Create an API key with <code>create_doc</code> (or <code>create</code>, <code>index</code>, <code>write</code>) on the target, and <code>auto_configure</code> or <code>create_index</code> if the index or data stream should be created on the first write; a data stream needs a matching index template. In Attestkeep: <strong>Elasticsearch</strong>, the cluster's base URL, the key's <em>encoded</em> value, and the index or data stream (default <code>attestkeep-events</code>). Reference: <a href="https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-bulk">Bulk API</a>.</p>
+
+<h3>Google SecOps</h3>
+<p>Create a webhook feed (<strong>Settings › Feeds › Add new</strong>, source type <em>Webhook</em>, split delimiter <code>\n</code>), generate its secret key, and create an API key. In Attestkeep: <strong>HTTP (JSON)</strong>, the feed URL, body <em>one event per line</em>, header 1 <code>X-goog-api-key</code> with the API key, header 2 <code>X-Webhook-Access-Key</code> with the feed's secret. Reference: <a href="https://docs.cloud.google.com/chronicle/docs/ingestion/setup-siem-webhook">Set up a SIEM webhook</a>.</p>
+
+<h3>Sumo Logic</h3>
+<p>Create an HTTP Logs and Metrics source. In Attestkeep: <strong>HTTP (JSON)</strong>, body <em>one event per line</em>, gzip on, and either the source URL or the base URL with header <code>x-sumo-token</code>. The source URL carries its own access code; the token header keeps it out of the address. Reference: <a href="https://help.sumologic.com/docs/send-data/hosted-collectors/http-source/logs-metrics/upload-logs/">Upload logs to an HTTP source</a>.</p>
+
+<h3>Exabeam</h3>
+<p>Create a Webhook Cloud Collector in JSON mode. In Attestkeep: <strong>HTTP (JSON)</strong>, the collector's <code>…/cloud-collectors/v1/logs/json</code> URL, body <em>JSON array</em>, header <code>Authorization</code> with <code>Bearer &lt;token&gt;</code>. Reference: Exabeam's <a href="https://docs.exabeam.com/en/collectors/all/cloud-collectors-administration-guide/onboard-cloud-collectors/webhook-cloud-collectors/webhook-cloud-collector.html">Webhook Cloud Collector</a>.</p>
+
+<h2>What is sent, per destination</h2>
+
+<ul>
+  <li><strong>Events</strong>: the default set is every type except <code>admission.allowed</code>; or tick the ones you want.</li>
+  <li><strong>Namespaces</strong>: empty means all. An event without a namespace is cluster-wide and always goes.</li>
+  <li><strong>Lowest severity</strong>: events below it are not sent.</li>
+  <li><strong>Send the last 24 hours first</strong>: only for a new destination. Without it, it starts with what happens from the moment it is added.</li>
+</ul>
+
+<p><strong>Test</strong> sends one event of type <code>test</code> through the destination as it is saved, whatever its filters and even when it is disabled, and shows the answer.</p>
+
+<h2>Delivery</h2>
+
+<ul>
+  <li><strong>At least once, for the HTTP destinations</strong> (HTTP JSON, Splunk HEC, Elasticsearch, Sentinel): a batch the destination did not accept is sent again, whole. Drop repeats by <code>reference</code>; Elasticsearch does it for you, because every document is written with the reference as its id. A document Elasticsearch refuses for good (a mapping conflict, say) is counted as not delivered instead of holding back the events behind it.</li>
+  <li><strong>Best effort, for syslog.</strong> Syslog has no delivery receipt. A batch counts as sent once the connection has taken it, over TLS with octet counting as over plain TCP; events written to a connection when it drops can be lost. The page marks syslog destinations <em>Best effort</em>.</li>
+  <li><strong>Every few seconds</strong>, at most 100 events per request, from the replica running the operator's periodic work.</li>
+  <li><strong>One destination never holds back another.</strong> Each has its own place in the stream.</li>
+  <li><strong>Retries</strong> start after 5 seconds and double up to 5 minutes while a destination fails, and never come sooner than a <code>Retry-After</code> the destination sent with a 429 or 503 (still at most 5 minutes).</li>
+  <li><strong>One replica.</strong> Only the replica holding the operator's lock exports; when it loses the lock it stops on its next tick, and the replica that takes the lock carries on from the same place.</li>
+  <li><strong>In commit order.</strong> A record still being written when the export reads is left for the next pass, so one committed late is not skipped. A transaction left open on the database server holds the export back until it ends; meanwhile the destination reads <em>Waiting</em> and the lag counts from the oldest record waiting. This needs PostgreSQL 13 or later: on an older server no destination can be switched on, and the page reads <em>Database too old</em>.</li>
+  <li><strong>24 hours.</strong> An event still not delivered 24 hours after it happened is given up and counted on the page as "N events not delivered". The evidence package's section 13, <em>External export</em>, lists the destinations, the last batch each accepted, and the events given up in the period.</li>
+</ul>
+
+<p>Metrics: <code>attestkeep_siem_events_total{target,outcome}</code> with outcome <code>delivered</code>, <code>failed</code> or <code>gave_up</code>, and <code>attestkeep_siem_lag_seconds{target}</code>, the age of the oldest event a destination has not received. <code>target</code> is the destination's id.</p>
+
+<h2>Without a destination: OpenTelemetry</h2>
+
+<p>The operator's own logs (<code>attestkeep.log/v1</code>), traces and metrics can go to an OpenTelemetry collector with <code>observability.otlp.endpoint</code> (see <a href="/configuration/">Configuration</a>), and from there to any SIEM the collector exports to. That stream is the operator's log, not the event schema above: the same decisions, written as log fields.</p>
+
+<h2>Configuration bundle</h2>
+
+<p>Settings › Backup exports SIEM destinations with the rest of the configuration, without their credentials and disabled. An HTTP (JSON) destination's URL is exported as scheme and host only, since the rest of it can be the collector's key; after an import, enter the full URL again. An import adds the ones not yet present, disabled; those that need a credential read <em>Credentials required</em> until it is entered. See <a href="/backup/">backup and restore</a>.</p>
+
+<h2>Who can do what</h2>
+
+<p>Every role that signs in can read the destinations and their status. Adding, changing, testing and removing one are administrator actions, filed in the audit log as <code>siem_target_add</code>, <code>siem_target_update</code>, <code>siem_target_test</code> and <code>siem_target_remove</code>.</p>
+
+<pre><code>GET    /api/v1/siem/targets
+POST   /api/v1/siem/targets              {"kind":"splunkhec","name":"SOC Splunk","config":{"url":"https://…/services/collector/event","token":"…"},"types":[],"namespaces":[],"min_severity":"info","backfill_24h":true}
+PUT    /api/v1/siem/targets/{id}         fields to change; config keys merge one by one (a key left out is kept, null clears it); an empty credential keeps the stored one, "clear_secrets":["hmac_secret"] drops one
+DELETE /api/v1/siem/targets/{id}
+POST   /api/v1/siem/targets/{id}/test</code></pre>
+
+<p>A field the server refuses comes back as <code>400</code> with <code>{"error":"&lt;field&gt;: …","field":"&lt;field&gt;"}</code>; a test the destination refused is <code>502</code> with its own words.</p>

@@ -75,6 +75,7 @@
       <li><a href="/policies-vex/">Producer statements (VEX)</a></li>
       <li><a href="/policies-context/">Deployment context</a></li>
       <li><a href="/policies-whatif/">Try a policy first</a></li>
+      <li><a href="/deny-list/">Deny list</a></li>
       <li><a href="/admission/">Admission</a></li>
       <li><a href="/air-gapped/">Air-gapped clusters</a></li>
       <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
@@ -86,6 +87,7 @@
     <ul>
       <li><a href="/runtime-events/">Runtime events (Falco)</a></li>
       <li><a href="/issue-trackers/">Issue trackers</a></li>
+      <li><a href="/siem/">SIEM export</a></li>
     </ul>
     <h2>Evidence and help</h2>
     <ul>
@@ -125,7 +127,7 @@
 <table>
   <thead><tr><th>Value</th><th>Default</th><th>What it does</th></tr></thead>
   <tbody>
-    <tr><td><code>postgresql.enabled</code></td><td><code>true</code></td><td>Install a PostgreSQL alongside. Turn off to use your own.</td></tr>
+    <tr><td><code>postgresql.enabled</code></td><td><code>true</code></td><td>Install a PostgreSQL alongside. Turn off to use your own (PostgreSQL 13 or later from 1.4.0).</td></tr>
     <tr><td><code>postgresql.persistence.size</code></td><td><code>20Gi</code></td><td></td></tr>
     <tr><td><code>postgresql.auth.password</code></td><td><code>""</code></td><td>Generated when empty.</td></tr>
     <tr><td><code>externalDsnExistingSecret.name</code></td><td><code>""</code></td><td><strong>Preferred</strong> for an external database.</td></tr>
@@ -149,6 +151,12 @@
     <tr><td><code>kev.existingConfigMap</code></td><td><code>""</code></td><td>The name of a ConfigMap in the release namespace holding a mirrored copy of the catalogue, mounted read-only at <code>/etc/kev</code> on the scanner. The copy has to be gzipped: a ConfigMap holds at most 1 MiB and the published catalogue is 1.7 MB, which the API server refuses outright; gzipped it is under 200 KB. Point <code>kev.source</code> at <code>file:///etc/kev/&lt;key&gt;</code>, the key being the name of the file the ConfigMap was created from — <code>gzip -k known_exploited_vulnerabilities.json</code> and <code>kubectl -n attestkeep create configmap kev-catalog --from-file=known_exploited_vulnerabilities.json.gz</code> is read as <code>file:///etc/kev/known_exploited_vulnerabilities.json.gz</code>. The scanner decides whether a file is compressed by its first two bytes, not its name. Empty mounts nothing.</td></tr>
     <tr><td><code>reconcile.interval</code></td><td><code>1h</code></td><td>How often what is actually running — each container's observed <code>imageID</code> — is reconciled against the admission ledger, catching workloads that entered before the install, during an outage, or under <code>failurePolicy: Ignore</code>. <code>0</code> disables the sweep. What a finding does is the policy's choice: <a href="/policies/"><code>spec.runtimeReconciliation</code></a>.</td></tr>
     <tr><td><code>rbac.allowEnforce</code></td><td><code>false</code></td><td>Whether the operator may evict pods at all. Enforcement is armed with two keys: the policy chooses <code>enforce</code>, this grants the <code>pods/eviction</code> permission it needs. An audit-only install carries no eviction right.</td></tr>
+    <tr><td><code>rbac.denyList.takedown</code></td><td><code>false</code></td><td>Whether an administrator may take down a running workload a deny-list entry catches. When true the operator may also evict pods (<code>pods/eviction</code>) and read and update <code>deployments/scale</code>, <code>statefulsets/scale</code> and <code>replicasets/scale</code>. That eviction grant serves take down only: a runtime policy's <strong>Stop the pod</strong> and <code>runtimeReconciliation: enforce</code> still need <code>rbac.allowEnforce</code>. Nothing is taken down on its own; see <a href="/deny-list/#affected-workloads-and-take-down">the deny list</a>.</td></tr>
+    <tr><td><code>binscanLimits</code></td><td><code>""</code></td><td>The caps of the deny list's executable check, as <code>size=256Mi,files=4000,time=60s</code> (the built-in caps, which empty keeps): an executable larger than <code>size</code> is hashed but not read for versions, an image is read up to <code>files</code> executables, and the walk after the pull stops at <code>time</code>. A check a cap stopped is "not checked", never clean. Each key is optional; see <a href="/deny-list/#executables">the deny list</a>.</td></tr>
+    <tr><td><code>scan.binscanTimeout</code></td><td><code>10m</code></td><td>The deadline of one deny-list executable check (pull, walk and version match), apart from <code>scan.timeout</code>, which is the vulnerability scan's. A check that runs past it is "not checked (limit)" and names this value.</td></tr>
+    <tr><td><code>scan.tmpSizeLimit</code></td><td><code>4Gi</code></td><td>The size limit of the scanner's <code>/tmp</code>. The executable check downloads one image's compressed layers there per running check and removes them afterwards; past the limit the kubelet evicts the scanner pod instead of filling the node's disk.</td></tr>
+    <tr><td><code>scan.binscanDiskBudget</code></td><td><code>""</code></td><td>The most compressed layer bytes one executable check downloads. Empty: <code>scan.tmpSizeLimit</code> shared by the workers, less 256 MiB for an executable read while it is checked (<code>4Gi</code> and two workers: 1792Mi). An image larger than the budget is not downloaded and reads "not checked (limit)", "image larger than the check's disk budget".</td></tr>
+    <tr><td><code>denyListWhatIfLimits</code></td><td><code>""</code></td><td>Advanced. How much of the cluster one What if of a deny-list entry reads before it stops and says its answer is partial, as <code>deadline=20s,pods=20000,digests=2000</code> (the built-in bounds, which empty keeps). Each key is optional. Lowering them shows on a small cluster the partial answer a large one gives; raising them makes a What if hold the API longer.</td></tr>
   </tbody>
 </table>
 </div>
@@ -181,6 +189,7 @@
   <thead><tr><th>Value</th><th>Default</th><th>What it does</th></tr></thead>
   <tbody>
     <tr><td><code>license.existingCertificateSecret</code></td><td><code>""</code></td><td>Name of a Secret holding an offline certificate under the key <code>certificate</code>, for installs that never open the console. The operator reads it at start and activates from it if it holds no certificate, or if this one runs later than the one it holds, so a Secret left behind after a console renewal is ignored. The certificate comes from the licence page at attestkeep.com, issued against an activation request this cluster produced, so it is valid for this cluster and no other. Empty everywhere else: activation is a console screen, not a chart value. See <a href="/licensing/#offline-activation">offline activation</a>.</td></tr>
+    <tr><td><code>license.caBundle</code></td><td><code>""</code></td><td>PEM certificates the licence client trusts beside the system roots, for a TLS-intercepting proxy on the route to <code>license.serverUrl</code> or a licence server under a private CA. Rendered into a ConfigMap and mounted into the operator; certificate verification stays on. A value with no PEM certificate is refused when the chart renders. Set it with <code>--set-file license.caBundle=ca.pem</code>. Without it, activation against a private-CA endpoint fails with "The licence server could not be reached: its certificate is not trusted, or the connection failed." in the console.</td></tr>
     <tr><td><code>nodes.pollInterval</code></td><td><code>5m</code></td><td>How often the operator counts the cluster's Ready nodes against the licence's node ceiling. The count stays in the cluster.</td></tr>
     <tr><td><code>nodes.graceDays</code></td><td><code>14</code></td><td>Days the cluster may stay over its node ceiling before image names never seen this period are denied at admission; everything already counted keeps running. Neither value loosens the ceiling, which is in the certificate. See <a href="/licensing/#node-ceiling">the node ceiling</a>.</td></tr>
   </tbody>

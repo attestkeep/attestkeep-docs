@@ -12,7 +12,7 @@
   <li>Kubernetes 1.27+.</li>
   <li>Permission to create a <code>ValidatingWebhookConfiguration</code> — cluster-scoped, so cluster-admin on the first install.</li>
   <li>A namespace of its own. The chart creates one.</li>
-  <li>Roughly 20 GiB for the bundled PostgreSQL, or the DSN of one you already run.</li>
+  <li>Roughly 20 GiB for the bundled PostgreSQL, or the DSN of one you already run (PostgreSQL 13 or later for the SIEM export).</li>
 </ul>
 
 <h2>Verify before you install</h2>
@@ -78,7 +78,7 @@ kubectl -n attestkeep port-forward svc/attestkeep 8080:8080</code></pre>
 
 <p>Migrations are compiled into the binary and applied on first connection, each recorded so it runs exactly once. There is no SQL for you to run and no migration step to forget on upgrade.</p>
 
-<p>To use a database you already run, put the DSN in a secret rather than on the command line — an inline value lands in your Helm release history and stays there.</p>
+<p>To use a database you already run (PostgreSQL 13 or later; on an older server the SIEM export does not run and its destinations cannot be switched on), put the DSN in a secret rather than on the command line — an inline value lands in your Helm release history and stays there.</p>
 
 <pre><code>kubectl -n attestkeep create secret generic attestkeep-db \
   --from-literal=dsn='postgres://user:pass@db.internal:5432/attestkeep?sslmode=require'

@@ -53,6 +53,10 @@
           "title": "Try a policy first"
         },
         {
+          "slug": "deny-list",
+          "title": "Deny list"
+        },
+        {
           "slug": "admission",
           "title": "Admission"
         },
@@ -88,6 +92,10 @@
         {
           "slug": "issue-trackers",
           "title": "Issue trackers"
+        },
+        {
+          "slug": "siem",
+          "title": "SIEM export"
         }
       ]
     },

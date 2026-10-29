@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deny list — Attestkeep docs</title>
+<meta name="description" content="Refuse an image by digest, advisory id, package version range or executable, ahead of break-glass and every policy rule, and see what an entry would catch before you add it.">
+<link rel="canonical" href="https://docs.attestkeep.com/deny-list/">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#071f20">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Deny list — Attestkeep docs">
+<meta property="og:description" content="Refuse an image by digest, advisory id, package version range or executable, ahead of break-glass and every policy rule, and see what an entry would catch before you add it.">
+<meta property="og:url" content="https://docs.attestkeep.com/deny-list/">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "Deny list",
+      "description": "Refuse an image by digest, advisory id, package version range or executable, ahead of break-glass and every policy rule, and see what an entry would catch before you add it.",
+      "url": "https://docs.attestkeep.com/deny-list/",
+      "inLanguage": "en",
+      "isPartOf": { "@type": "WebSite", "name": "Attestkeep docs", "url": "https://docs.attestkeep.com/" },
+      "publisher": { "@type": "Organization", "name": "Attestkeep", "url": "https://attestkeep.com/" }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Docs", "item": "https://docs.attestkeep.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Deny list", "item": "https://docs.attestkeep.com/deny-list/" }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/img/mark-white.svg" alt="" width="26" height="26">
+    <span class="wordmark">Attest<b>keep</b></span>
+    <span class="brand__tag">docs</span>
+  </a>
+  <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  <nav class="top__links">
+    <a href="https://github.com/attestkeep/attestkeep-docs/issues">GitHub issues</a>
+    <a href="https://attestkeep.com/pricing.html">Pricing</a>
+    <a href="https://attestkeep.com/app/signin">Sign in</a>
+  </nav>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+        <h2>Start here</h2>
+    <ul>
+      <li><a href="/">Overview</a></li>
+      <li><a href="/install/">Install</a></li>
+      <li><a href="/what-runs/">What runs in your cluster</a></li>
+      <li><a href="/scope/">What Attestkeep does not do</a></li>
+      <li><a href="/licensing/">Licensing</a></li>
+    </ul>
+    <h2>Running it</h2>
+    <ul>
+      <li><a href="/using-the-console/">Using the console</a></li>
+      <li><a href="/configuration/">Configuration</a></li>
+      <li><a href="/policies/">Policies</a></li>
+      <li><a href="/policies-vex/">Producer statements (VEX)</a></li>
+      <li><a href="/policies-context/">Deployment context</a></li>
+      <li><a href="/policies-whatif/">Try a policy first</a></li>
+      <li><a href="/deny-list/" aria-current="page">Deny list</a></li>
+      <li><a href="/admission/">Admission</a></li>
+      <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
+      <li><a href="/operations/">Operations and alerting</a></li>
+      <li><a href="/upgrade/">Upgrade</a></li>
+      <li><a href="/backup/">Backup and restore</a></li>
+    </ul>
+    <h2>Integrations</h2>
+    <ul>
+      <li><a href="/runtime-events/">Runtime events (Falco)</a></li>
+      <li><a href="/issue-trackers/">Issue trackers</a></li>
+      <li><a href="/siem/">SIEM export</a></li>
+    </ul>
+    <h2>Evidence and help</h2>
+    <ul>
+      <li><a href="/evidence-trust/">Evidence trust model</a></li>
+      <li><a href="/compliance/">Compliance frameworks</a></li>
+      <li><a href="/verifying-reports/">Verifying a report</a></li>
+      <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      <li><a href="/support/">Support and security</a></li>
+      <li><a href="/releases/">Releases</a></li>
+    </ul>
+  </nav>
+
+  <main class="content" id="content">
+    <h1>Deny list</h1>
+<p class="lede">A policy answers "does this image meet the rules", automatically. A deny-list entry answers a different question: "did somebody decide this image must not run". The deny list is where that decision is written down, and it is checked before anything else.</p>
+
+<p>There is one list per cluster, in <strong>Security › Deny list</strong>. Each policy's <code>denyList</code> field decides what its namespaces do about a match. An entry is never deleted: removing it lifts it, and the row stays with who removed it, when and why.</p>
+
+<div class="note">
+  <p><strong>An empty list changes nothing.</strong> With no active entry, admission resolves no extra digest and refuses nothing, so upgrading to 1.4.0 changes no decision until somebody adds an entry.</p>
+</div>
+
+<h2>Kinds of entry</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Kind</th><th>Matches</th><th>Example</th></tr></thead>
+  <tbody>
+    <tr><td><code>digest</code></td><td>One exact image build: <code>sha256:</code> and 64 hex characters, compared with the digest admission resolved for the pod, and with the image index or platform manifests it is known to belong to.</td><td><code>sha256:9f2a…d4e5</code></td></tr>
+    <tr><td><code>cve</code></td><td>Every image whose last scan reports the advisory id, whether or not a fix exists.</td><td><code>CVE-2021-44228</code>, <code>GHSA-jfh8-c2jp-5v3q</code>, <code>DLA-4726-1</code></td></tr>
+    <tr><td><code>package</code></td><td>Every image whose last scan lists the package in the version range.</td><td><code>maven org.apache.logging.log4j:log4j-core &lt; 2.17.1</code></td></tr>
+    <tr><td><code>binary</code></td><td>Every image carrying one executable, by the sha256 of its bytes, whatever its name or path.</td><td><code>binary sha256 d697e81fb96e</code></td></tr>
+    <tr><td><code>binary_path</code></td><td>Every image with an executable at a path, or with a file name anywhere. A path rule also hits base images: start it where the policy has <code>denyList: audit</code>. A pattern of wildcards only is refused.</td><td><code>/bin/sh</code>, <code>/usr/local/bin/*</code>, <code>nc</code></td></tr>
+    <tr><td><code>package</code>, ecosystem <code>bitnami</code></td><td>Every image with a runtime whose version, read out of the executable itself, is in the range; never a distribution package.</td><td><code>bitnami php &lt; 8.2.35</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Advisory ids are the ones scanners report findings under, because for some findings that id is the only name they have. Accepted schemes: CVE, GHSA, GO, PYSEC, RUSTSEC, OSV, MAL, GSD, DLA, DSA, ELA, USN, RHSA, RHBA, ALSA, ALBA, ELSA, CGA, BIT, TEMP, SUSE-SU and openSUSE-SU. Anything else — <code>NOT-A-CVE</code>, a typo ending in a dash — is refused when the entry is added, since an id no scanner reports would match nothing. Ids are stored upper-case (a GHSA body lower-case, as GitHub prints it) and matched case-insensitively.</p>
+
+<h2>Package entries: operators and versions</h2>
+
+<p>A package entry names an ecosystem, a package and one operator: <code>lt</code> (&lt;), <code>le</code> (&lt;=), <code>eq</code> (=), <code>ge</code> (&gt;=), <code>gt</code> (&gt;), <code>between</code> (lower bound included, upper bound excluded) or <code>any</code>. There is no free-text range; two ranges are two entries. Every operator works in every ecosystem, and versions are compared with the comparator the scanner itself uses for that ecosystem. A version the comparator cannot read is refused when the entry is added, rather than compared as a string, where 10.0 would sort below 9.0.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Ecosystem</th><th>Package name</th><th>Version format</th></tr></thead>
+  <tbody>
+    <tr><td><code>apk</code></td><td>the package, or its origin</td><td>version-rN, such as <code>3.3.2-r0</code></td></tr>
+    <tr><td><code>cargo</code></td><td>the crate</td><td>SemVer, such as <code>1.0.188</code></td></tr>
+    <tr><td><code>composer</code></td><td><code>vendor/package</code></td><td>a release version, such as <code>7.4.2</code></td></tr>
+    <tr><td><code>deb</code></td><td>the binary package, or its source package</td><td><code>[epoch:]upstream[-revision]</code>, such as <code>3.0.11-1~deb12u2</code></td></tr>
+    <tr><td><code>go</code></td><td>the module path</td><td>a module version, such as <code>v0.17.0</code></td></tr>
+    <tr><td><code>maven</code></td><td><code>groupId:artifactId</code></td><td>a Maven version starting with a digit, such as <code>2.17.1</code></td></tr>
+    <tr><td><code>npm</code></td><td>the package</td><td>SemVer, such as <code>4.17.21</code></td></tr>
+    <tr><td><code>nuget</code></td><td>the package id</td><td>a package version, such as <code>13.0.1</code></td></tr>
+    <tr><td><code>pypi</code></td><td>the project (stored in its PEP 503 form, so <code>PyYAML</code> and <code>pyyaml</code> are one entry)</td><td>PEP 440, such as <code>2.31.0</code> or <code>1.0rc1</code></td></tr>
+    <tr><td><code>rpm</code></td><td>the binary package, or its source package</td><td><code>[epoch:]version-release</code> starting with a digit</td></tr>
+    <tr><td><code>rubygems</code></td><td>the gem</td><td>a gem version, such as <code>7.0.4</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>An entry with <code>gt</code> or <code>ge</code> also covers every version released after it is added; the what-if says so. The console lists the same table from <code>GET /api/v1/deny-list/ecosystems</code>.</p>
+
+<h2 id="executables">Executables</h2>
+
+<p>Trivy reads what package managers recorded. A runtime compiled from source and copied into an image has no such record, and Trivy lists no package for it: a PHP 8.2.12 built from the php.net tarball, in an image without labels, shows 91 Debian packages and no php, in Trivy 0.74.0 and 0.76.1 alike. The <code>binary</code>, <code>binary_path</code> and <code>bitnami</code> entries are answered by the binary check instead, a second tool in the operator image that reads each image's executables. It runs only when such an entry is on the list; with none, no image is pulled a second time.</p>
+
+<ul>
+  <li><strong>Only bytes.</strong> The image is pulled by digest with the workload's own pull secrets, its layers read top-down with whiteouts applied, and every ELF file hashed. The image's name, labels, environment and base image are never read. A path is what a path rule matches, not evidence of a product.</li>
+  <li><strong>Versions from the file itself.</strong> A runtime's version is read from the executable's read-only data and confirmed by a second string in the same file, so a configuration file or a program that only links a library is not that product: nginx carries the OpenSSL it was built against, which is not the OpenSSL installed. Products: php, node, python, ruby, nginx, apache, postgresql, curl, openssl. Another is refused when the entry is added, and so is a range the signatures cannot read (they read ruby 3.x, python 3.x, postgresql 10 to 19 and openssl 1.1.1 and 3.x).</li>
+  <li><strong>Stripped builds are seen.</strong> <code>strip</code> removes symbols and debug sections, not read-only data: a stripped PHP 8.2.12 carries its version string at the same offset as the unstripped one.</li>
+  <li><strong>Three answers.</strong> Matched (with the file, its sha256 and the version found), not matched, or not checked with a reason (credentials, registry, image gone, limit, tool error, no source). Not checked is never counted as clean. The reason no check yet means no answer is recorded for the image's digest against the entry yet. An admission that meets it queues a check, and its warning or refusal says so ("(no check yet); a check has been queued"). In Affected and What if a running image with no recorded answer reads not checked (no check yet) when nothing is queued for it; one whose check is queued or whose scan failed is counted as no answer yet.</li>
+  <li><strong>When it runs.</strong> An added entry (an advisory id included) is checked against the images of running pods first, then the digests scanned in the last 90 days; a new image is checked in its scan; running images an entry has not reached yet are checked hourly. What if and Affected say "checking n of m" until every answer is in; an administrator can check an image again, which reads it again under the caps in force. A pod whose image has no answer yet for an executable or <code>bitnami</code> entry is decided as an unscanned image is: <code>DenyUntilScanned</code> refuses until the check has run, <code>AllowAndScan</code> admits with a warning. For an advisory entry a missing answer never refuses: Trivy's findings decide at once, and a match the check finds later only adds to them.</li>
+  <li><strong>Advisory ids reach these runtimes too.</strong> With a <code>cve</code> entry on the list, the runtimes found are matched against the Bitnami vulnerability ranges in the scanner's database: <code>CVE-2026-109618</code> catches a source-built PHP 8.2.12 or 8.3.0, not 8.2.35. A runtime those ranges do not cover, such as curl or openssl, is "no vulnerability data in this source", never "not matched".</li>
+</ul>
+
+<p>Not seen: an executable whose version string was removed or patched, one whose section headers were removed (shown as not checked), a statically linked and stripped executable of a product confirmed by a symbol name, packed executables (a packed or damaged executable anywhere in an image leaves that image's <code>bitnami</code> answers not checked, naming the file, and under <code>DenyUntilScanned</code> the image is refused until the entry is removed or the admission timing is changed), runtimes downloaded when the container starts, versions written outside executables, interpreted application code, and images that cannot be pulled (shown as not checked). The caps — an ELF file over 256 MiB is hashed but not read for versions, at most 4,000 executables per image, 60 seconds per walk — are the chart value <code>binscanLimits</code> (<a href="/configuration/">configuration</a>). Before downloading, the check adds up the image's layer sizes; an image larger than its disk budget (the scanner's <code>/tmp</code> limit, <code>scan.tmpSizeLimit</code>, shared by its workers, or <code>scan.binscanDiskBudget</code> when set) is not downloaded and reads not checked: "image larger than the check's disk budget".</p>
+
+<h2>Where it sits in the decision</h2>
+
+<p>The order is <strong>deny list, then break-glass, then the policy's rules</strong>. A listed image is refused even when it is clean, and even while break-glass is open: the entry is a deliberate decision, and it outranks the emergency door. The refusal reads:</p>
+
+<pre><code>denied by deny list entry 7: package maven org.apache.logging.log4j:log4j-core &lt; 2.17.1</code></pre>
+
+<p>The rules that need no registry call — the allowed-registry list, <code>blockLatestTag</code>, a required digest — are checked first. Under an enforcing policy their refusal stands on its own; under an Audit policy the review goes on to the deny list, so a listed image is refused there too.</p>
+
+<p>The policy's <code>denyList</code> field:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Value</th><th>What a match does in this policy's namespaces</th></tr></thead>
+  <tbody>
+    <tr><td><code>enforce</code> (default)</td><td>Refuses the pod, even when the policy's <code>enforcement</code> is <code>Audit</code>. An empty or absent field reads as <code>enforce</code>.</td></tr>
+    <tr><td><code>audit</code></td><td>Admits the pod with the warning <code>would be denied by deny list entry …</code>, and records the hit.</td></tr>
+    <tr><td><code>off</code></td><td>The list is not consulted.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Write <code>off</code> quoted in YAML (<code>denyList: "off"</code>): a bare <code>off</code> is a boolean to a YAML 1.1 reader. The CRD schema and the chart quote it for you.</p>
+
+<h2>Which requests it reviews</h2>
+
+<ul>
+  <li><strong>Pod creation.</strong> Every container, init container and ephemeral container of a new pod.</li>
+  <li><strong><code>kubectl debug</code>.</strong> The ephemeral container the request adds, and only that one: the pod's running containers are not decided again.</li>
+  <li><strong>Not other updates.</strong> A label, an annotation, a finalizer or an ownership change of an existing pod is neither refused nor counted.</li>
+  <li><strong>A dry run</strong> is answered like a real request but records no hit.</li>
+</ul>
+
+<p>Nothing running is stopped. An entry refuses a workload the next time one of its pods is created; the workload's controller keeps retrying, with its own back-off, until its image changes.</p>
+
+<h2>When a digest cannot be resolved</h2>
+
+<p>While the list holds an entry, admission resolves the pod's digest before break-glass. If the registry does not answer:</p>
+
+<ul>
+  <li>under an enforcing policy with <code>denyList: enforce</code>, the pod is refused with <code>deny list could not be evaluated: digest unresolved</code>;</li>
+  <li>under a policy in <code>Audit</code>, or with <code>denyList: audit</code>, it is admitted with that warning.</li>
+</ul>
+
+<p>One consequence: an image referenced by tag that only the nodes can pull — through node credentials such as a kubelet credential provider, rather than a pull secret the pod or its service account references — cannot be resolved by the operator, and is refused in enforcing namespaces while the list is not empty. Pin it by digest, or reference a pull secret from the pod (see <a href="/install/">private registries</a>). If the operator's database cannot be read, the list is not applied and the pod carries the warning <code>deny list unavailable; it was not applied to this image</code>, as the rest of admission behaves during a database outage.</p>
+
+<h2>What if</h2>
+
+<p><strong>What if</strong> tries an entry before anyone has to find out at admission — from its row, or in the Add dialog before saving. It answers two things side by side:</p>
+
+<ul>
+  <li><strong>Running workloads it covers</strong>, read from the cluster at that moment: each container's running image digest, grouped by the workload the pod belongs to: the Deployment above its ReplicaSet (the ReplicaSet shown under it), the CronJob above its Job, a StatefulSet, a DaemonSet, or the pod itself. Namespaces whose policy has the list off are counted apart; namespaces the admission webhook does not intercept are left out. The read stops after 20 seconds, 20,000 pods or 2,000 distinct images, whichever comes first, and then the answer says it is partial and how many pods it inspected.</li>
+  <li><strong>Past admissions it would have refused</strong>, from the last 30 days by default (up to 90): the ledger's rows decided again under each namespace's policy as it stands now, with this entry as the whole list — so the answer is about this entry, not about the ones already in force. Admissions let in under break-glass are decided too and counted with the rest, since break-glass never passes the deny list; the answer says how many of them it would have refused.</li>
+</ul>
+
+<p>Nothing is stopped and nothing is saved. A run made by a deployer or an administrator is kept in <strong>Security › What-if history</strong> with the type <em>Deny list</em>, ninety days like every run and at most the latest five hundred deny-list runs, counted apart from policy runs, and downloads as PDF or JSON — a projection, not evidence, never part of an evidence package. See <a href="/policies-whatif/">trying a policy first</a> for the history itself.</p>
+
+<h2>Hits</h2>
+
+<p>Every refusal and every audit warning an entry causes is counted against the workload — the Deployment, not its ReplicaSet, so a rollout does not start a new row (rows recorded before 1.4.0 keep the ReplicaSet; after the upgrade the workload's next refusal starts its Deployment row, without a new notification): one row per entry, namespace, workload and digest, with the first and last time it was seen and how many times. The deny-list page shows the latest hits of every entry under the list, and <strong>Hits</strong> on a row shows that entry's, filtered by namespace or workload. The admission ledger row of each refusal names the entry that decided it.</p>
+
+<h2 id="affected-workloads-and-take-down">Affected workloads and take down</h2>
+
+<p>An entry refuses new pods. It never stops what is already running: no policy mode touches a running workload on its own. <strong>Affected</strong> on an entry's row lists, live from the cluster, the workloads it catches now and the ones it refused, each with a status:</p>
+
+<ul>
+  <li><strong>Running</strong> — pods running a listed image are up.</li>
+  <li><strong>Pods down, recreate denied</strong> — none is up and the controller's new pods are refused. A refused <code>kubectl debug</code> container is not counted here: a workload the entry caught only that way runs, is listed as Running with "debug container refused", and offers no take down.</li>
+  <li><strong>Scaled to zero</strong> — a take down set it to zero replicas and it is still there.</li>
+  <li><strong>Restored externally</strong> — it was scaled to zero here and asks for replicas again: somebody, or a GitOps tool, put them back. It is shown and left alone.</li>
+</ul>
+
+<p>An administrator can <strong>Take down</strong> a running workload, with a reason. It acts once and nothing ever repeats it. The take down is recorded before the cluster is touched, and its outcome (done, blocked by a budget, or failed with the error) after. The call to the cluster runs to its own 30-second limit even if the browser goes away. A take down whose outcome was not recorded (the operator stopped mid-call) is read back from the workload after a minute and when the controller starts: at zero replicas it is done, still at its old count it failed. The panel and the hits show a pending or failed take down with its error and age, and Restore works on a failed or pending scale to zero whose workload is at zero:</p>
+
+<ul>
+  <li><strong>Delete pods</strong> (the default) evicts the pods running a listed image, once. The desired state is not touched: the controller creates replacements, admission refuses them while the entry stands, and the workload shows as degraded until its image changes or the entry is removed — then it heals by itself.</li>
+  <li><strong>Scale to zero</strong>, for a Deployment, StatefulSet or ReplicaSet, sets the replicas to 0 through the scale subresource, refusing (409) if the count is no longer the one the dialog showed, and keeps the previous count. <strong>Restore</strong> puts it back. Removing the entry does not: nothing scales a workload without a click. A DaemonSet, a Job, a CronJob or a bare pod is taken down by deleting its pods.</li>
+</ul>
+
+<p><strong>PodDisruptionBudgets are honoured.</strong> Pods are evicted through the eviction API, which refuses with <code>429</code> while a budget would be broken; such a pod keeps running, the dialog says "PDB blocked, N pods remain", and nothing forces or retries it.</p>
+
+<p><strong>GitOps.</strong> A workload Argo CD tracks (the <code>argocd.argoproj.io/tracking-id</code> annotation, or an <code>argocd.argoproj.io/instance</code> tracking label) or Flux applied (<code>kustomize.toolkit.fluxcd.io/name</code> or <code>helm.toolkit.fluxcd.io/name</code>) is marked in the panel, and the dialog warns that the tool will put a scale to zero back. When it does, the row reads <em>restored externally</em>; Attestkeep never scales it down again. The permanent fix is in the source: change the image, or lower the replicas.</p>
+
+<p><strong>Enabling it.</strong> Take down needs <code>rbac.denyList.takedown: true</code> in the chart (default <code>false</code>). It grants the operator <code>pods/eviction</code> <code>create</code> and <code>get</code>/<code>update</code> on <code>deployments/scale</code>, <code>statefulsets/scale</code> and <code>replicasets/scale</code>, cluster-wide. Without it the button is shown disabled and the API answers <code>409</code>. Reading the owner chain (<code>get</code> and <code>list</code> on Deployments, ReplicaSets, StatefulSets, DaemonSets, Jobs and CronJobs) is granted in every installation: it is read-only. A namespace admission does not review — the operator's own, one the webhook's namespace selector leaves out (the bypass label) or one in <code>webhook.bypassNamespaces</code> — is never taken down: its recreated pods would not be checked, so a take down would only restart the same image. The panel shows such a row with that note and no button; the API answers <code>409</code>.</p>
+
+<h2>Notifications and events</h2>
+
+<p>A channel subscribed to <strong>Deny list hit</strong> (on by default for new channels) is told the first time an entry catches a workload, with the entry, its reason, the workload and the way out: "Change the image or lower the replicas; the gate will keep refusing recreated pods." After that the refusals are counted and sent once a day per entry as a digest. A deny-list refusal is not also sent as <strong>Admission blocked</strong>: that event is for refusals by the policy's own rules. <strong>Deny list entry added</strong> and <strong>removed</strong> are there to subscribe to, off by default.</p>
+
+<p>A refusal also leaves a Kubernetes <code>Warning</code> event, reason <code>DenyListRefused</code>, naming the entry, on the workload (the Deployment, StatefulSet, DaemonSet, CronJob or Job), so <code>kubectl describe</code> says why its pods do not start; for a pod nobody owns, on its namespace. At most one per workload and entry every five minutes. The ImageSecurityReport of a refused image carries <code>status.denyList</code> with the entry id and the refusal.</p>
+
+<h2>Evidence</h2>
+
+<p>The evidence package has a <strong>Deny list</strong> section: the entries in force at the end of the period and the ones added or removed in it (who, when, why), the admissions the entries refused and let in, the exceptions — matches let in because a namespace audits the list — and every take down and restore with its reason. The policy hash does not cover the list; the entry that decided an admission is named in that admission record. See <a href="/verifying-reports/">verifying reports</a>.</p>
+
+<h2>Limits</h2>
+
+<ul>
+  <li><strong>Advisory and package entries need a scan.</strong> They are matched against an image's last scan record; an image that has never been scanned cannot be matched until it is. Digest entries need no scan.</li>
+  <li><strong>Index or platform digest.</strong> An entry naming an image index digest catches a pod that arrives with one of its platform digests, and the other way round, once the operator has seen the relation — which it learns when it resolves a tag or scans the image.</li>
+  <li><strong>Packages a package manager installed.</strong> Package entries other than <code>bitnami</code> see what the scanner's package inventory lists: OS packages and language packages with their manifests. A binary built from source and copied into an image is not in that inventory; the <a href="#executables">executable entries</a> are for it.</li>
+  <li><strong>After upgrading,</strong> each policy records one new revision, because <code>denyList</code> is part of the policy content the ledger hashes.</li>
+</ul>
+
+<h2>Who can do what</h2>
+
+<p>Reading the list, its hits, its affected workloads and running What if need the same authority as reading a policy. Adding and removing an entry, taking a workload down and restoring it are administrator actions, and all but restore need a reason. The audit log files them as <code>deny_list_add</code>, <code>deny_list_remove</code>, <code>deny_list_takedown</code>, <code>deny_list_restore</code> and, for an administrator's check again, <code>deny_list_check_again</code> (the target is <code>namespace/Kind/name</code>); a what-if run is filed as <code>policy_whatif</code>, naming the run. The SIEM export sends a take down as <code>denylist.takedown</code> and a restore as <code>denylist.restored</code>.</p>
+
+<pre><code>GET  /api/v1/deny-list[?removed=true]
+POST /api/v1/deny-list                 {"kind":"package","ecosystem":"maven","package_name":"org.apache.logging.log4j:log4j-core","version_op":"lt","version":"2.17.1","reason":"…"}
+POST /api/v1/deny-list/{id}/remove     {"reason":"…"}
+GET  /api/v1/deny-list/{id}/hits[?namespace=&amp;workload=]
+GET  /api/v1/deny-list/hits[?namespace=&amp;workload=]
+GET  /api/v1/deny-list/ecosystems
+POST /api/v1/deny-list/whatif          {"entry_id":7,"period_days":30}   or   {"entry":{…},"period_days":30}
+GET  /api/v1/deny-list/{id}/affected
+POST /api/v1/deny-list/{id}/takedown   {"namespace":"prod","kind":"Deployment","name":"web","mechanism":"scale_zero","reason":"…","expected_replicas":3}
+POST /api/v1/deny-list/{id}/restore    {"takedown_id":4}
+GET  /api/v1/deny-list/{id}/checks
+POST /api/v1/deny-list/{id}/checks/again   {"digest":"sha256:…"}
+GET  /api/v1/deny-list/whatif/runs/{id}</code></pre>
+
+<p>A field the server refuses comes back as <code>400</code> with <code>{"error":"&lt;field&gt;: …","field":"&lt;field&gt;"}</code>; a second active entry with the same value is <code>409</code>.</p>
+    <footer class="content__foot">
+      <p>Attestkeep — container image security for Kubernetes.</p>
+      <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>
+    </footer>
+  </main>
+</div>
+
+<script src="/assets/docs.js" defer></script>
+</body>
+</html>

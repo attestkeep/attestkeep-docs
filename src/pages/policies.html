@@ -177,7 +177,13 @@ spec:
     auditRef: "INC-2417"
     expiresAt: "2026-09-01T06:00:00Z"
     affectedImages:
-      - registry.example.com/payments/api:1.41.2</code></pre>
+      - registry.example.com/payments/api</code></pre>
+
+<p><code>affectedImages</code> names images by registry and repository: <code>nginx</code>,
+<code>docker.io/library/nginx</code> and <code>nginx:1.27</code> all name the same image, and a
+tag or digest in an entry does not narrow the bypass to that tag. An empty list covers every
+image the policy governs. An image on the <a href="/deny-list/">deny list</a> is refused even
+while break-glass is open.</p>
 
 <p>Every admission that passed only because of break-glass is marked as such in the audit
 trail and in compliance reports — the exception is evidence too, which is the point.</p>
@@ -242,9 +248,11 @@ to a person and not to a sweep.</p>
 alongside the sweep's own honesty markers: containers the webhook would not have
 intercepted are counted apart as out-of-scope, side-loaded images that carry no registry
 digest are reported as unverifiable rather than folded into either verdict, and a
-truncated workload list says so. During break-glass, <code>enforce</code> quietly steps
-down to <code>notify</code> — a pod stopped mid-incident would be readmitted through the
-bypass, which would launder it into an allowed event instead of judging it.</p>
+truncated workload list says so. During a break-glass that covers every image,
+<code>enforce</code> quietly steps down to <code>notify</code> — a pod stopped mid-incident
+would be readmitted through the bypass, which would launder it into an allowed event
+instead of judging it. A break-glass scoped to named images leaves only their pods running
+and enforces the rest.</p>
 
 <h2>Base OS support and known-exploited CVEs</h2>
 
@@ -332,12 +340,14 @@ spec:
     <tr><td><code>thresholds</code></td><td>—</td><td><code>blockCritical</code>/<code>blockHigh</code> refuse on any such finding; <code>maxMedium</code>/<code>maxLow</code> set ceilings (0 = unlimited).</td></tr>
     <tr><td><code>slaWindows</code></td><td>durations</td><td>How long a finding of each severity may stay open before reports call it overdue.</td></tr>
     <tr><td><code>requireSignature</code></td><td>bool</td><td>Refuse images without a verified cosign signature.</td></tr>
+    <tr><td><code>signatureKeys</code></td><td>list of PEM public keys</td><td>The keys (<code>cosign.pub</code>) an image signature may verify against. With <code>requireSignature</code> and at least one key, only a signature one of these keys verifies is accepted, and the scan records it under the key's fingerprint (<code>key sha256:…</code>), which the evidence package names. With none, any verified signature is accepted. Set with <code>kubectl</code>; the console's policy form keeps it as it is. The API server refuses an entry that is not a PEM public key (plain text, a private key); an entry of that shape that still does not parse is ignored, and the policy's <code>status.conditions</code> (<code>SignatureKeysValid</code>), a Warning event and the policies page name it.</td></tr>
     <tr><td><code>requireSBOM</code></td><td>bool</td><td>Refuse images without an SBOM attestation.</td></tr>
     <tr><td><code>requireVulnAttestation</code></td><td>bool</td><td>Refuse images without a vulnerability-scan attestation.</td></tr>
     <tr><td><code>attestationMaxAge</code></td><td>duration</td><td>An attestation older than this no longer counts.</td></tr>
     <tr><td><code>workloadHardening</code></td><td><code>mode</code>, <code>minSeverity</code>, <code>exempt</code></td><td>Whether privileged containers, hostPath mounts and similar refuse (<code>enforce</code>), warn, or pass; <code>exempt</code> names workloads allowed anyway.</td></tr>
     <tr><td><code>endOfLifeOS</code></td><td><code>ignore</code> | <code>warn</code> | <code>block</code></td><td>What happens to an image whose base OS is past its vendor's support window. Default <code>warn</code>.</td></tr>
     <tr><td><code>knownExploited</code></td><td><code>ignore</code> | <code>warn</code> | <code>block</code></td><td>What happens to an image carrying a CVE on CISA's Known Exploited Vulnerabilities catalogue. Default <code>warn</code>.</td></tr>
+    <tr><td><code>denyList</code></td><td><code>enforce</code> | <code>audit</code> | <code>"off"</code></td><td>What a match on the cluster's <a href="/deny-list/">deny list</a> does here: refuse (even under <code>Audit</code> enforcement), admit with a warning, or not consult the list. Default <code>enforce</code>; quote <code>"off"</code> in YAML.</td></tr>
     <tr><td><code>provenance</code></td><td><code>minLevel</code> 0&ndash;3, <code>trustedBuilders</code></td><td>Refuse an image whose verified SLSA provenance does not name a trusted builder, is not signed by the identity that entry accepts, or is credited below <code>minLevel</code>. Default <code>minLevel: 0</code>, the gate off.</td></tr>
     <tr><td><code>vex</code></td><td><code>mode</code> <code>ignore</code> | <code>apply</code>, <code>trustedIssuers</code></td><td>Whether a trusted producer's signed <code>not_affected</code> or <code>fixed</code> statement takes a finding out of the counts. Default <code>ignore</code> — recorded and shown, nothing suppressed. See <a href="/policies-vex/">producer statements</a>.</td></tr>
     <tr><td><code>deploymentContext</code></td><td><code>mode</code> <code>Ignore</code> | <code>Escalate</code>, <code>signals</code></td><td>Judge a pod carrying a selected signal more strictly. Default <code>Ignore</code> — signals recorded, no decision changed; an empty <code>signals</code> list under <code>Escalate</code> means all six. See <a href="/policies-context/">deployment context</a>.</td></tr>

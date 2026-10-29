@@ -11,6 +11,7 @@
   <url><loc>https://docs.attestkeep.com/policies-vex/</loc></url>
   <url><loc>https://docs.attestkeep.com/policies-context/</loc></url>
   <url><loc>https://docs.attestkeep.com/policies-whatif/</loc></url>
+  <url><loc>https://docs.attestkeep.com/deny-list/</loc></url>
   <url><loc>https://docs.attestkeep.com/admission/</loc></url>
   <url><loc>https://docs.attestkeep.com/air-gapped/</loc></url>
   <url><loc>https://docs.attestkeep.com/verify-enforcement/</loc></url>
@@ -19,6 +20,7 @@
   <url><loc>https://docs.attestkeep.com/backup/</loc></url>
   <url><loc>https://docs.attestkeep.com/runtime-events/</loc></url>
   <url><loc>https://docs.attestkeep.com/issue-trackers/</loc></url>
+  <url><loc>https://docs.attestkeep.com/siem/</loc></url>
   <url><loc>https://docs.attestkeep.com/evidence-trust/</loc></url>
   <url><loc>https://docs.attestkeep.com/compliance/</loc></url>
   <url><loc>https://docs.attestkeep.com/verifying-reports/</loc></url>

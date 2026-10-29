@@ -19,18 +19,26 @@ attestkeep-docs/
 │       ├── using-the-console — konsol ekran ekran: güvenlik özeti, politikalar, açıklar, triyaj, kanıt paketi, break-glass, ledger (görselli kılavuz)
 │       ├── configuration — Helm değerleri; konsolda kalanların ayrımı (SSO ekranı görseli)
 │       ├── policies       — ImageSecurityPolicy: alan referansı, hazır politika
-│       │                   örnekleri, endOfLifeOS/knownExploited/provenance kapıları
+│       │                   örnekleri, endOfLifeOS/knownExploited/provenance kapıları,
+│       │                   denyList alanı, break-glass affectedImages ad bazlı
 │       ├── policies-vex   — imzalı OpenVEX bildirimi bir bulguyu sayımdan nasıl çıkarır
 │       ├── policies-context — deploymentContext: altı sinyal, escalate kuralları,
 │       │                   ClusterRole'ün Services/Ingresses okuması
 │       ├── policies-whatif — taslak politikayı ledger üzerinde tekrar oynatma
+│       ├── deny-list     — kara liste (1.4.0): digest / advisory id / paket kayıtları,
+│       │                   ekosistem başına operatörler, öncelik (liste > break-glass >
+│       │                   kurallar, enforce Audit'i geçer), CREATE + kubectl debug,
+│       │                   çözülemeyen digest, what-if, hit'ler, etkilenen workload'lar +
+│       │                   take down (elle, bir kez; delete_pods / scale_zero, PDB, GitOps,
+│       │                   restore, rbac.denyList.takedown, #affected-workloads-and-take-down),
+│       │                   bildirim + Kubernetes event, kanıt bölümü, sınırlar, API
 │       ├── admission     — karar akışı, failurePolicy ve coldImagePolicy duruşu
 │       ├── verify-enforcement — 5 dakikalık runbook: kötü pod at, reddi gör, kaydı doğrula
 │       ├── operations    — probe'lar, DB kesintisi davranışı, HA, hangi metrik uyandırır, GitOps/ArgoCD
 │       ├── air-gapped    — veritabanı aynalama, transparency log'suz imza doğrulama, lisans: tek çıkış yolu ya da offline sertifika
 │       ├── upgrade       — yükseltme, şema (1.0.2→1.1.0: 0013–0020; 1.1.x→1.2.0:
 │       │                   0021–0024, ileri yönlü), geri alma, imza doğrulama
-│       ├── backup        — neyi yedekle (evidence-key ve data-key dahil), config export/import, restore'un kanıta etkisi
+│       ├── backup        — neyi yedekle (evidence-key ve data-key dahil), config export/import, restore'un kanıta etkisi (SIEM hedefleri sırsız ve kapalı)
 │       ├── runtime-events — Falco http_output → mTLS integrations portu (8444), sertifika
 │       │                   paketi indirme/rotasyon, token/Sidekick yok; runtime
 │       │                   kuralları (match/window/action), runtime block + triage
@@ -38,6 +46,12 @@ attestkeep-docs/
 │       ├── issue-trackers — GitHub/GitLab/Jira kanalları: dedup, dailyCap, kapatma
 │       │                   nedenleri, data-key ile şifreli kimlik bilgisi, runtime
 │       │                   issue'ları (#runtime-issues)
+│       ├── siem          — SIEM aktarımı (1.4.0): attestkeep.event/v1 alan tablosu, olay türleri,
+│       │                   beş hedef (HTTP JSON, Splunk HEC, Syslog CEF/LEEF/JSON, Elasticsearch,
+│       │                   Sentinel), her SIEM için kurulum + doğrulanmış vendor bağlantısı,
+│       │                   gönderim (HTTP'de en az bir kez, syslog'da best effort, commit sırası +
+│       │                   PostgreSQL 13+, 24 saat vazgeçiş, metrikler), aktör adları, adres değişince
+│       │                   kimlik bilgisi silinir, config paketi, OTLP yolu, API
 │       ├── evidence-trust — ledger mühürleme modeli, tek erişimin yapamadığı, garantilerin bittiği yer
 │       ├── compliance    — eşlenen 13 çerçeve (293 madde), kanıt paketi içeriği,
 │       │                   report.json 1.2.0 alanları (tests, generation, records,

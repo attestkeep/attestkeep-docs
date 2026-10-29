@@ -55,7 +55,7 @@ docker.io/library/postgres:16  ─┴─ one image against the quota</code></pre
 
 <h2>Activation</h2>
 
-<p>Activation happens once per cluster and spends one slot. On the first run the operator generates a keypair inside the cluster, keeps the private half in its own database, and sends only the public half with the activation request. The activation key itself travels exactly once.</p>
+<p>Activation happens once per cluster and spends one slot. On the first run the operator generates its signing key inside the cluster, keeps the private half in a Kubernetes Secret (<code>attestkeep-evidence-key</code>) shared by every replica, and sends only the public half with the activation request. It is the same key that signs evidence packages, so the certificate names the key an auditor verifies them against. The activation key itself travels exactly once.</p>
 
 <p>What is sent:</p>
 
@@ -72,7 +72,7 @@ docker.io/library/postgres:16  ─┴─ one image against the quota</code></pre
 
 <h2>The daily check</h2>
 
-<p>Once a day the operator sends the licence id, the cluster fingerprint and the operator version, signed with the keypair from activation, and with them the public half of the key this cluster signs evidence packages with — so that the licence service can vouch for that key to an auditor, see <a href="/verifying-reports/">Verifying reports</a>. If the key cannot be read that day it is simply left out and the service keeps the one it holds. Nothing else is in the request unless you switch on the optional ledger anchor (<code>LICENSE_LEDGER_ANCHOR</code>, off by default), which adds the hash of the newest ledger checkpoint and nothing about what it seals. The answer is a status, and a fresh certificate only when something changed or the current one is running out.</p>
+<p>Once a day the operator sends the licence id, the cluster fingerprint and the operator version, signed with the key from activation, and with them the public half of that same key, the one this cluster signs evidence packages with — so that the licence service can vouch for that key to an auditor, see <a href="/verifying-reports/">Verifying reports</a>. If the key cannot be read that day it is simply left out and the service keeps the one it holds. Nothing else is in the request unless you switch on the optional ledger anchor (<code>LICENSE_LEDGER_ANCHOR</code>, off by default), which adds the hash of the newest ledger checkpoint and nothing about what it seals. The answer is a status, and a fresh certificate only when something changed or the current one is running out.</p>
 
 <p>Nothing about your images, your workloads, your policies or your findings is sent. There is no telemetry channel and no setting that would add one.</p>
 

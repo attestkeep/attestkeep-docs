@@ -26,7 +26,7 @@ helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
 
 <h2>Signature verification without a transparency log</h2>
 
-<p>Cosign's keyless flow checks a public transparency log, which an air-gapped cluster cannot reach. Setting <code>scan.cosignOffline</code> verifies against the key and skips that check.</p>
+<p>Cosign's keyless flow checks a public transparency log, which an air-gapped cluster cannot reach. Setting <code>scan.cosignOffline</code> verifies against the key and skips that check. The key is the policy's: <code>signatureKeys</code> for image signatures (see <a href="/policies/">policies</a>), a <code>key</code> entry in <code>vex.trustedIssuers</code> for VEX statements. A keyless signature is recorded as unverified while offline.</p>
 
 <div class="warn">
   <p><strong>This is a real reduction in what a signature proves.</strong> With the log, you learn that a signature exists and was publicly recorded when it was made. Without it, you learn that the artefact was signed by a key you trust. That is still worth having, and it is less. Choose it because your network requires it, not because it is simpler.</p>
