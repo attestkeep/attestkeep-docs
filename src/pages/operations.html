@@ -41,7 +41,7 @@
   <tbody>
     <tr><td>Operator / webhook</td><td>2 replicas, preferred anti-affinity across nodes, PodDisruptionBudget <code>minAvailable: 1</code></td><td>Raise <code>replicaCount</code>; the replicas serialise controller work through a PostgreSQL advisory lock, so scaling out is safe.</td></tr>
     <tr><td>Scanner</td><td>1 replica, <code>Recreate</code> strategy</td><td>Raise <code>scanner.replicas</code> — the chart refuses the combination of multiple replicas and a ReadWriteOnce cache volume, and tells you why.</td></tr>
-    <tr><td>Bundled PostgreSQL</td><td>Single replica by design — it is a convenience, not an HA database</td><td>Point <code>externalDsn</code> (or <code>externalDsnExistingSecret</code>) at the PostgreSQL you already operate with replication and backups. The bundled StatefulSet then does not render at all.</td></tr>
+    <tr><td>Chart-managed PostgreSQL</td><td>Single replica by design — it is a convenience, not an HA database</td><td>Point <code>externalDsn</code> (or <code>externalDsnExistingSecret</code>) at the PostgreSQL you already operate with replication and backups. The chart-managed StatefulSet then does not render at all.</td></tr>
   </tbody>
 </table>
 </div>

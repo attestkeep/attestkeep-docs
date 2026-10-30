@@ -14,7 +14,7 @@
   <tbody>
     <tr><td>Deployment <code>attestkeep</code></td><td>2 replicas, anti-affinity preferred across nodes, PDB <code>minAvailable: 1</code></td><td>The operator: admission webhook (8443), console and API (8080), metrics (9090), and the Falco integrations listener (8444) only when <code>integrations.falco.enabled</code> is on. Controller work is serialised through a PostgreSQL advisory lock, so replicas scale without a leader-election lease.</td></tr>
     <tr><td>Deployment <code>attestkeep-scanner</code></td><td>1 replica</td><td>Runs Trivy scans and cosign verification off the admission path. Never receives admission traffic.</td></tr>
-    <tr><td>StatefulSet <code>attestkeep-postgresql</code></td><td>1 replica, 20&nbsp;GiB, <code>postgres:16.4-alpine</code></td><td>The bundled database. Renders only when you have not set <code>externalDsn</code> — point that at your own PostgreSQL and this object does not exist.</td></tr>
+    <tr><td>StatefulSet <code>attestkeep-postgresql</code></td><td>1 replica, 20&nbsp;GiB, <code>postgres:16.4-alpine</code></td><td>The chart-managed database. Renders only when you have not set <code>externalDsn</code> — point that at your own PostgreSQL and this object does not exist.</td></tr>
   </tbody>
 </table>
 </div>
