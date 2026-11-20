@@ -17,7 +17,8 @@ attestkeep-docs/
 │       ├── scope         — kapsam dışı beş iş (runtime davranış tespiti, IaC/CIS taraması, CSPM, reachability analizi, repo bağımlılık taraması) ve her biri için yanına ne konulacağı
 │       ├── licensing     — planlar (1.3.0: cluster başına node tavanı, 14 gün tolerans, #node-ceiling), aktivasyon (online + offline sertifika, Deactivate), küme slotları, günlük kontrol (Usage/Licence ekranı + sertifika runway görseli)
 │       ├── using-the-console — konsol ekran ekran: güvenlik özeti, politikalar, açıklar, triyaj, kanıt paketi, break-glass, ledger (görselli kılavuz)
-│       ├── configuration — Helm değerleri; konsolda kalanların ayrımı (SSO ekranı görseli)
+│       ├── configuration — Helm değerleri; Publish için özel CA (#rules-publish-ca,
+│       │                   runtime.rulesPublish.caBundle); konsolda kalanların ayrımı (SSO ekranı görseli)
 │       ├── policies       — ImageSecurityPolicy: alan referansı, hazır politika
 │       │                   örnekleri, endOfLifeOS/knownExploited/provenance kapıları,
 │       │                   denyList alanı, break-glass affectedImages ad bazlı
@@ -32,6 +33,10 @@ attestkeep-docs/
 │       │                   take down (elle, bir kez; delete_pods / scale_zero, PDB, GitOps,
 │       │                   restore, rbac.denyList.takedown, #affected-workloads-and-take-down),
 │       │                   bildirim + Kubernetes event, kanıt bölümü, sınırlar, API
+│       ├── mitigations   — bilinen geçici önlemler (1.4.1): Settings › Scanning › Mitigations
+│       │                   iki anahtar (varsayılan kapalı), gömülü liste (CVE-2026-114938),
+│       │                   Fix not released yet bandı, pod check (durumlar, kör noktalar,
+│       │                   Secret/ConfigMap okunmaz), Worth a look, API
 │       ├── admission     — karar akışı, failurePolicy ve coldImagePolicy duruşu
 │       ├── verify-enforcement — 5 dakikalık runbook: kötü pod at, reddi gör, kaydı doğrula
 │       ├── operations    — probe'lar, DB kesintisi davranışı, HA, hangi metrik uyandırır, GitOps/ArgoCD
@@ -39,10 +44,12 @@ attestkeep-docs/
 │       ├── upgrade       — yükseltme, şema (1.0.2→1.1.0: 0013–0020; 1.1.x→1.2.0:
 │       │                   0021–0024, ileri yönlü), geri alma, imza doğrulama
 │       ├── backup        — neyi yedekle (evidence-key ve data-key dahil), config export/import, restore'un kanıta etkisi (SIEM hedefleri sırsız ve kapalı)
-│       ├── runtime-events — Falco http_output → mTLS integrations portu (8444), sertifika
-│       │                   paketi indirme/rotasyon, token/Sidekick yok; runtime
-│       │                   kuralları (match/window/action), runtime block + triage
-│       │                   release, runtime.enforceBlocks, evidence runtime bölümü
+│       ├── runtime-events — Falco http_output ya da Sidekick → mTLS integrations portu
+│       │                   (8444), sertifika paketi indirme/rotasyon; runtime policy'leri
+│       │                   (match/window/action, Stop the pod); kural editörü, şablon
+│       │                   (#rule-templates, Java process spawned a shell), falcoctl
+│       │                   değerleri (#falcoctl: tam rules_files, TLS şartı, follow.every),
+│       │                   falcoctl için özel CA (#falcoctl-private-ca); evidence runtime bölümü
 │       ├── issue-trackers — GitHub/GitLab/Jira kanalları: dedup, dailyCap, kapatma
 │       │                   nedenleri, data-key ile şifreli kimlik bilgisi, runtime
 │       │                   issue'ları (#runtime-issues)

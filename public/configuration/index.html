@@ -76,6 +76,7 @@
       <li><a href="/policies-context/">Deployment context</a></li>
       <li><a href="/policies-whatif/">Try a policy first</a></li>
       <li><a href="/deny-list/">Deny list</a></li>
+      <li><a href="/mitigations/">Known temporary mitigations</a></li>
       <li><a href="/admission/">Admission</a></li>
       <li><a href="/air-gapped/">Air-gapped clusters</a></li>
       <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
@@ -176,11 +177,31 @@
     <tr><td><code>integrations.falco.enabled</code></td><td><code>false</code></td><td>Turns the integration on: the integrations listener, the Falco client CA and client certificate (Secret <code>&lt;release&gt;-falco-mtls</code>), and the console's Falco section. Off, there is no listener and no CA.</td></tr>
     <tr><td><code>integrations.port</code></td><td><code>8444</code></td><td>The TLS port Falco posts to, on the pod and the Service. It requires a client certificate from the Falco CA and serves only <code>POST /api/v1/integrations/falco</code>. Only used when the integration is on.</td></tr>
     <tr><td><code>runtime.retentionDays</code></td><td><code>90</code></td><td>Every event is stored; stored events older than this are removed hourly. Only events — issue history, audit entries and rule revisions stay. <code>0</code> keeps them.</td></tr>
+    <tr><td><code>runtime.rulesPublish.caBundle</code></td><td><code>""</code></td><td>PEM certificates trusted beside the system roots when the Falco rule editor publishes a rules file to your registry. Empty: the system roots only. See <a href="#rules-publish-ca">below</a>.</td></tr>
   </tbody>
 </table>
 </div>
 
 <p>What an event leads to is not a chart value: it is decided by the runtime rules written in the console's Falco section. <code>integrations.falco.existingSecret</code> and <code>integrations.falco.minPriority</code> from earlier releases are no longer read.</p>
+
+<h3 id="rules-publish-ca">A private CA for publishing rules files</h3>
+
+<p><strong>Publish</strong> in the Falco rule editor pushes a rules file to your OCI registry and trusts the system roots. A registry whose certificate is signed by a private CA is refused with a certificate error (<code>x509: certificate signed by unknown authority</code>) until its CA is in <code>runtime.rulesPublish.caBundle</code>. Set it from a file:</p>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  -n attestkeep -f values.yaml \
+  --set-file runtime.rulesPublish.caBundle=ca.crt</code></pre>
+
+<ul>
+  <li>Only the client that publishes rules files reads it. Image scanning, <strong>Validate with Falco</strong>, the licence client (which has <code>license.caBundle</code>), SIEM destinations and notification channels keep their own trust.</li>
+  <li>The system roots stay trusted, so a registry with a publicly trusted certificate is reached as before. Certificate verification stays on.</li>
+  <li>A value without a PEM certificate (<code>-----BEGIN CERTIFICATE-----</code>) is refused when the chart renders.</li>
+  <li>The chart renders it into the ConfigMap <code>&lt;release&gt;-rules-publish-ca</code> and mounts it into the operator. Like every <code>helm upgrade</code> of the chart, changing it restarts the operator pods.</li>
+  <li>The file is read at every publish. If it cannot be read or holds no certificate, nothing is published to any registry until it is fixed: <strong>Publish</strong> answers with a message that names <code>runtime.rulesPublish.caBundle</code>, and the operator logs the same at start.</li>
+  <li>Without the value, <strong>Publish</strong> reaches a registry with a publicly trusted certificate, or a host listed in <code>scan.insecureRegistries</code> over plain HTTP. The scanner reaches a host on that list over plain HTTP too.</li>
+</ul>
+
+<p>Falco pulls the file through falcoctl, which needs to trust the same CA. That is Falco chart configuration: see <a href="/runtime-events/#falcoctl-private-ca">Runtime events</a>.</p>
 
 <h2>Licence</h2>
 

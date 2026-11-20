@@ -76,6 +76,7 @@
       <li><a href="/policies-context/">Deployment context</a></li>
       <li><a href="/policies-whatif/">Try a policy first</a></li>
       <li><a href="/deny-list/">Deny list</a></li>
+      <li><a href="/mitigations/">Known temporary mitigations</a></li>
       <li><a href="/admission/">Admission</a></li>
       <li><a href="/air-gapped/">Air-gapped clusters</a></li>
       <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
@@ -249,7 +250,7 @@ values if the gate must hold even while the operator is down — see
 a few minutes — the scanner pulls the image and the vulnerability database is cold — and until it
 finishes the image shows as <em>Unknown</em> on the Images page with the reason "admitted before first
 scan". Every later admission of that digest decides on the finished report. Both timings are available
-in every edition, Community included; <strong>Rescan</strong> on the Images page runs a scan on demand.</p>
+in every edition, Community included; <strong>Rescan</strong> on the Images page runs a scan on demand, with the pull secrets of a pod running that image from the same registry and repository, or, when no such pod runs or the one running names no pull secrets, the ones recorded the last time a pod's admission queued it.</p>
 
 <h2>Example: break-glass</h2>
 
@@ -410,7 +411,7 @@ spec:
 
 <p>An image whose verified SLSA provenance — v1 or v0.2 — does not name a trusted builder, or whose signing certificate identity or issuer is not the one the entry accepts, or whose builder is credited below <code>minLevel</code>, is refused, and the reason names the builder, the signer or the level. Both identities are read from the certificate the registry stores beside the attestation, which the scanner fetches itself: an image whose certificate cannot be reached or parsed is refused rather than admitted on the predicate's word alone.</p>
 
-<p>This is the only check that binds to <em>who</em>. <code>requireSBOM</code> and <code>requireVulnAttestation</code> verify that somebody signed the attestation; the provenance gate verifies which identity did. The predicate, builder, signer and issuer appear on the scan row and on the console's image detail, and evidence packages carry <code>provenance-verified</code> facts.</p>
+<p>This is the only check that binds to a signing <em>identity</em>. <code>requireSBOM</code> verifies that somebody signed the attestation, and <code>requireVulnAttestation</code> that somebody signed it keylessly or that one of the policy's <code>signatureKeys</code> did; the provenance gate verifies which identity did. The predicate, builder, signer and issuer appear on the scan row and on the console's image detail, and evidence packages carry <code>provenance-verified</code> facts.</p>
 
 <h2>Producer statements, and where the pod runs</h2>
 
@@ -437,10 +438,10 @@ spec:
     <tr><td><code>targetNamespaces</code></td><td>list</td><td>Empty makes this the global policy; non-empty scopes it to those namespaces, overriding the global one there.</td></tr>
     <tr><td><code>thresholds</code></td><td>—</td><td><code>blockCritical</code>/<code>blockHigh</code> refuse on any such finding; <code>maxMedium</code>/<code>maxLow</code> set ceilings (0 = unlimited).</td></tr>
     <tr><td><code>slaWindows</code></td><td>durations</td><td>How long a finding of each severity may stay open before reports call it overdue.</td></tr>
-    <tr><td><code>requireSignature</code></td><td>bool</td><td>Refuse images without a verified cosign signature.</td></tr>
-    <tr><td><code>signatureKeys</code></td><td>list of PEM public keys</td><td>The keys (<code>cosign.pub</code>) an image signature may verify against. With <code>requireSignature</code> and at least one key, only a signature one of these keys verifies is accepted, and the scan records it under the key's fingerprint (<code>key sha256:…</code>), which the evidence package names. With none, any verified signature is accepted. Set with <code>kubectl</code>; the console's policy form keeps it as it is. The API server refuses an entry that is not a PEM public key (plain text, a private key); an entry of that shape that still does not parse is ignored, and the policy's <code>status.conditions</code> (<code>SignatureKeysValid</code>), a Warning event and the policies page name it.</td></tr>
+    <tr><td><code>requireSignature</code></td><td>bool</td><td>Refuse images without a verified cosign signature. An image with no signature is refused with "this image has none"; one whose signature none of the policy's <code>signatureKeys</code> verify, with "this image has a signature, but none of the policy's signature keys verify it" when the signature is stored as a <code>.sig</code> tag; a signature in the bundle format, which cosign 3 writes by default, that nothing verifies is refused with "this image has none".</td></tr>
+    <tr><td><code>signatureKeys</code></td><td>list of PEM public keys</td><td>The keys (<code>cosign.pub</code>) an image signature may verify against. With <code>requireSignature</code> and at least one key, only a signature one of these keys verifies is accepted, and the scan records it under the key's fingerprint (<code>key sha256:…</code>), which the evidence package names. With none, any verified signature is accepted. A vulnerability attestation that verifies against one of these keys counts for <code>requireVulnAttestation</code>; a keyless one counts with or without keys. Set it in the console's policy form (under Supply chain, shown while a signature is required or keys are set) or with <code>kubectl</code>; a save that does not send the field keeps the keys as they are. The console and the API refuse an entry that is not shaped as a PEM public key, by its position, and the API server refuses an entry that is not a PEM public key (plain text, a private key); an entry of that shape that still does not parse is ignored, and the policy's <code>status.conditions</code> (<code>SignatureKeysValid</code>), a Warning event and the policies page name it.</td></tr>
     <tr><td><code>requireSBOM</code></td><td>bool</td><td>Refuse images without an SBOM attestation.</td></tr>
-    <tr><td><code>requireVulnAttestation</code></td><td>bool</td><td>Refuse images without a vulnerability-scan attestation.</td></tr>
+    <tr><td><code>requireVulnAttestation</code></td><td>bool</td><td>Refuse images without a vulnerability-scan attestation (<code>https://cosign.sigstore.dev/attestation/vuln/v1</code>, what <code>kubectl image-security attest --type vuln</code> writes). One counts when it verifies keylessly, or against one of the policy's <code>signatureKeys</code>. An image with none is refused with "this image has none"; one whose attestation counts for nothing under the policy, with "this image has one, but it verifies neither keylessly nor with one of the policy's signature keys" (on a policy with no keys: "this image has one that does not verify keylessly").</td></tr>
     <tr><td><code>attestationMaxAge</code></td><td>duration</td><td>An attestation older than this no longer counts.</td></tr>
     <tr><td><code>workloadHardening</code></td><td><code>mode</code>, <code>minSeverity</code>, <code>exempt</code></td><td>Whether privileged containers, hostPath mounts and similar refuse (<code>enforce</code>), warn, or pass; <code>exempt</code> names workloads allowed anyway.</td></tr>
     <tr><td><code>endOfLifeOS</code></td><td><code>ignore</code> | <code>warn</code> | <code>block</code></td><td>What happens to an image whose base OS is past its vendor's support window. Default <code>warn</code>.</td></tr>

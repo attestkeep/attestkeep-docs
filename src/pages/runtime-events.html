@@ -279,17 +279,54 @@ falcosidekick:
 
 <h2>Writing Falco rules in the console</h2>
 
-<p><strong>Falco &gt; Rules &gt; New rule</strong> (admins) opens an editor for a Falco rules file: rules, macros, lists and overrides in Falco's own YAML, saved under a file name. The editor is in beta.</p>
+<p><strong>Falco &gt; Rules &gt; New rule</strong> (admins) opens an editor for a Falco rules file: rules, macros, lists and overrides in Falco's own YAML, saved under a file name of lower case letters, digits, dots, dashes and underscores, starting with a letter or digit. The editor is in beta.</p>
 
 <p>Completion and checks follow the Falco version running in your cluster. The editor finds Falco by the label the Falco chart sets, <code>app.kubernetes.io/name=falco</code>, in any namespace. If no running pod has that label, you can still write rules but not validate them.</p>
 
 <ul>
   <li><strong>Validate with Falco</strong> starts a one-off pod in the operator's namespace with the same image your Falco runs. It loads Falco's default rules and then your file, runs <code>falco</code> in validation mode, and is deleted once the result is read. The pod has no service-account token, runs as non-root with a read-only filesystem and all capabilities dropped. Your running Falco is not touched. The chart creates the Role this needs, <code>&lt;release&gt;-rule-validation</code>.</li>
   <li><strong>Save</strong> is enabled only after Falco has accepted exactly the text in the editor, and the server validates it again before storing it. Each save is a new version, recorded with who saved it and which Falco image and version accepted it. The rules in the file appear in the <strong>Rules</strong> list, so a policy can use them before any event arrives. A rule name that another saved file already defines is refused with <code>409</code>.</li>
-  <li><strong>Publish</strong> pushes a saved version to your OCI registry as a falcoctl <code>rulesfile</code> artifact, tagged with the version number and with <code>latest</code>. Enter the repository (registry and path, no tag). If the registry needs a login, enter the <strong>name</strong> of a <code>kubernetes.io/dockerconfigjson</code> Secret in the operator's namespace. Attestkeep reads the Secret when it pushes and does not store the credential. A registry listed in <code>scan.insecureRegistries</code> is reached over plain HTTP. If your Falco image has changed since the version was validated, publishing validates it again first.</li>
+  <li><strong>Publish</strong> pushes a saved version to your OCI registry as a falcoctl <code>rulesfile</code> artifact, tagged with the version number and with <code>latest</code>. Enter the repository (registry and path, no tag). If the registry needs a login, enter the <strong>name</strong> of a <code>kubernetes.io/dockerconfigjson</code> Secret in the operator's namespace. Attestkeep reads the Secret when it pushes and does not store the credential. A registry listed in <code>scan.insecureRegistries</code> is reached over plain HTTP. If your Falco image has changed since the version was validated, publishing validates it again first. If the registry refuses the push, the error gives the HTTP status and the registry's own error message; a page that is not a registry error, such as an HTML page from a proxy in front of the registry, is not shown, and the message says so. A <code>401</code> or <code>403</code> also names the push Secret the operator used, as namespace/name, or says that none was entered; never what the Secret holds.</li>
 </ul>
 
-<p>Your Falco loads the file through falcoctl. Add the reference to the falcoctl values of your Falco chart and add the file to <code>rules_files</code> after Falco's own rules. The editor shows these values with your repository and file name filled in:</p>
+<p>Publish trusts the system roots. A registry whose certificate is signed by a private CA is refused with a certificate error until its CA is in the Attestkeep chart value <a href="/configuration/#rules-publish-ca"><code>runtime.rulesPublish.caBundle</code></a>. Without that value, Publish reaches a registry with a publicly trusted certificate, or a host in <code>scan.insecureRegistries</code> over plain HTTP.</p>
+
+<h3 id="rule-templates">Starting from a template</h3>
+
+<p><strong>Falco &gt; Rules &gt; From template</strong> (admins) opens the editor with a ready-made rules file. It is a draft like any other: nothing is validated, saved or published until you do it. Once saved, its rules are in the <strong>Rules</strong> list and a runtime policy can name them.</p>
+
+<p>One template ships with this version: <strong>Java process spawned a shell</strong>, file name <code>attestkeep-java-shell</code>. Its rule raises a <code>WARNING</code> event when a process whose executable ends in <code>/bin/java</code> starts a shell inside a container. A Java service that has no reason to start a shell and starts one can be running an attacker's code, as with Log4Shell or CVE-2026-114938. The rule uses the upstream macros <code>spawned_process</code>, <code>container</code> and <code>shell_procs</code>, so Falco's own <code>falco_rules.yaml</code> has to be loaded before it.</p>
+
+<p>Some Java software starts shells by design: build agents (Jenkins), Gradle exec tasks, Hadoop and Spark, and any JVM started with <code>-XX:OnError</code> or <code>-XX:OnOutOfMemoryError</code>. The template carries two exceptions with no values. Fill them from the events the rule produces in your cluster, not in advance:</p>
+
+<pre><code>  exceptions:
+    - name: known_java_workloads
+      fields: [k8s.ns.name, container.image.repository]
+      comps: [=, =]
+      values:
+        - [ci, jenkins/inbound-agent]
+    - name: known_java_parents
+      fields: [proc.pcmdline]
+      comps: [startswith]
+      values:
+        - ["java -jar /usr/share/jenkins/agent.jar"]</code></pre>
+
+<p>What the rule does not catch, as the file itself says:</p>
+
+<ul>
+  <li>Code that runs inside the JVM without starting a process: a payload after memory corruption, work done through reflection or JNDI, files and connections the JVM opens itself.</li>
+  <li>A child that is not a shell, such as <code>java</code> starting <code>python</code> or <code>curl</code>.</li>
+  <li><code>busybox sh</code>, where the process name is <code>busybox</code>. The applet link <code>sh</code> is caught.</li>
+  <li>A shell started by that shell: only the first shell is reported.</li>
+  <li>Images with no shell (distroless): the rule stays silent.</li>
+  <li>Anything an exception matches.</li>
+</ul>
+
+<p>The rule only raises events. What an event leads to is decided by your runtime policies, as for any other rule.</p>
+
+<h3 id="falcoctl">How your Falco picks it up</h3>
+
+<p>Your Falco loads the file through falcoctl. Add the reference to the falcoctl values of your Falco chart and add the file to <code>rules_files</code> after the entries already there. The editor's <strong>How your Falco picks it up</strong> box shows these values with your repository and file name filled in. The values in this section were checked with the Falco chart 9.2.2 (Falco 0.45.2, falcoctl 0.14.3).</p>
 
 <pre><code><span class="s"># values for the falcosecurity/falco chart</span>
 falcoctl:
@@ -307,13 +344,58 @@ falcoctl:
 falco:
   rules_files:
     - /etc/falco/falco_rules.yaml
+    - /etc/falco/falco_rules.local.yaml
+    - /etc/falco/rules.d
     - /etc/falco/my-rules.yaml</code></pre>
 
 <ul>
   <li><code>falco-rules:5</code> is the Falco chart's default reference. Helm replaces a list instead of merging it, so keep it and any other references you already have. Without it, <code>/etc/falco/falco_rules.yaml</code> is not installed.</li>
-  <li>falcoctl checks the reference every <code>follow.every</code>. The chart's default is <code>168h</code>.</li>
+  <li><code>rules_files</code> is a list too, and Helm replaces it the same way. The chart's default is the first three entries above: keep the entries you already have and add your file after them. A list with only <code>falco_rules.yaml</code> and your file stops Falco loading <code>falco_rules.local.yaml</code> and the files in <code>/etc/falco/rules.d</code>. The editor's box shows the same list.</li>
+  <li>The reference in the editor's box names the host Publish pushed to. If Falco reaches the registry at a different address, use that address in the falcoctl references.</li>
+  <li>The registry Falco pulls from has to serve TLS. falcoctl's <code>--plain-http</code> applies to every reference of the command, so with it <code>falco-rules:5</code> no longer pulls. For a registry under a private CA, see <a href="#falcoctl-private-ca">below</a>.</li>
+  <li>falcoctl checks the references on its own schedule, every <code>follow.every</code> (the chart's default is <code>168h</code>). A published version reaches Falco at one of those checks, not when you press Publish.</li>
   <li>If the registry needs a login, falcoctl reads it from <code>FALCOCTL_REGISTRY_AUTH_BASIC</code> (<code>registry,user,password</code>), set in both <code>falcoctl.artifact.install.env</code> and <code>falcoctl.artifact.follow.env</code>.</li>
   <li>Deleting a file in the console removes its rules from the <strong>Rules</strong> list. What was already published stays in the registry and in every Falco that installed it until you remove the reference from falcoctl.</li>
+</ul>
+
+<h3 id="falcoctl-private-ca">falcoctl and a registry under a private CA</h3>
+
+<p>This is configuration of your Falco chart, which you own; Attestkeep does not configure Falco. falcoctl trusts the system roots. To add your CA, put it in a ConfigMap in Falco's namespace, mount it into both falcoctl containers, and set <code>SSL_CERT_DIR</code> to the mount path in both. falcoctl then trusts the certificates in that directory and keeps the system bundle, so <code>falco-rules:5</code> still pulls.</p>
+
+<pre><code>kubectl -n falco create configmap registry-ca --from-file=ca.crt</code></pre>
+
+<pre><code><span class="s"># values for the falcosecurity/falco chart, beside the falcoctl values above</span>
+mounts:
+  volumes:
+    - name: registry-ca
+      configMap:
+        name: registry-ca
+falcoctl:
+  artifact:
+    install:
+      env:
+        - name: SSL_CERT_DIR
+          value: /etc/registry-ca
+      mounts:
+        volumeMounts:
+          - name: registry-ca
+            mountPath: /etc/registry-ca
+            readOnly: true
+    follow:
+      env:
+        - name: SSL_CERT_DIR
+          value: /etc/registry-ca
+      mounts:
+        volumeMounts:
+          - name: registry-ca
+            mountPath: /etc/registry-ca
+            readOnly: true</code></pre>
+
+<ul>
+  <li><code>mounts.volumes</code> adds the volume to the Falco pod. <code>falcoctl.artifact.install.mounts.volumeMounts</code> and <code>falcoctl.artifact.follow.mounts.volumeMounts</code> mount it into the two falcoctl containers.</li>
+  <li>These are lists, which Helm replaces. If you already set <code>FALCOCTL_REGISTRY_AUTH_BASIC</code> in <code>install.env</code> and <code>follow.env</code>, keep it in the same lists.</li>
+  <li>If Falco runs in another namespace, change <code>-n falco</code>.</li>
+  <li>The Attestkeep side, Publish to the same registry, takes the CA in <a href="/configuration/#rules-publish-ca"><code>runtime.rulesPublish.caBundle</code></a>.</li>
 </ul>
 
 <p>Validating, saving, deleting and publishing are written to the audit log as <code>falco_rule_validate</code>, <code>falco_rule_file_change</code> and <code>falco_rule_file_publish</code>.</p>

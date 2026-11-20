@@ -57,6 +57,10 @@
           "title": "Deny list"
         },
         {
+          "slug": "mitigations",
+          "title": "Known temporary mitigations"
+        },
+        {
           "slug": "admission",
           "title": "Admission"
         },

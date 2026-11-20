@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Known temporary mitigations — Attestkeep docs</title>
+<meta name="description" content="A sourced temporary mitigation beside a CVE that has one, the CVE's unfixed findings in a band of their own, and a read-only check of the pods running it: is the flag in the pod spec, and was the last restart a memory crash.">
+<link rel="canonical" href="https://docs.attestkeep.com/mitigations/">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#071f20">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Known temporary mitigations — Attestkeep docs">
+<meta property="og:description" content="A sourced temporary mitigation beside a CVE that has one, the CVE's unfixed findings in a band of their own, and a read-only check of the pods running it: is the flag in the pod spec, and was the last restart a memory crash.">
+<meta property="og:url" content="https://docs.attestkeep.com/mitigations/">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "Known temporary mitigations",
+      "description": "A sourced temporary mitigation beside a CVE that has one, the CVE's unfixed findings in a band of their own, and a read-only check of the pods running it: is the flag in the pod spec, and was the last restart a memory crash.",
+      "url": "https://docs.attestkeep.com/mitigations/",
+      "inLanguage": "en",
+      "isPartOf": { "@type": "WebSite", "name": "Attestkeep docs", "url": "https://docs.attestkeep.com/" },
+      "publisher": { "@type": "Organization", "name": "Attestkeep", "url": "https://attestkeep.com/" }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Docs", "item": "https://docs.attestkeep.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Known temporary mitigations", "item": "https://docs.attestkeep.com/mitigations/" }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/img/mark-white.svg" alt="" width="26" height="26">
+    <span class="wordmark">Attest<b>keep</b></span>
+    <span class="brand__tag">docs</span>
+  </a>
+  <button class="top__menu" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  <nav class="top__links">
+    <a href="https://github.com/attestkeep/attestkeep-docs/issues">GitHub issues</a>
+    <a href="https://attestkeep.com/pricing.html">Pricing</a>
+    <a href="https://attestkeep.com/app/signin">Sign in</a>
+  </nav>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+        <h2>Start here</h2>
+    <ul>
+      <li><a href="/">Overview</a></li>
+      <li><a href="/install/">Install</a></li>
+      <li><a href="/what-runs/">What runs in your cluster</a></li>
+      <li><a href="/scope/">What Attestkeep does not do</a></li>
+      <li><a href="/licensing/">Licensing</a></li>
+    </ul>
+    <h2>Running it</h2>
+    <ul>
+      <li><a href="/using-the-console/">Using the console</a></li>
+      <li><a href="/configuration/">Configuration</a></li>
+      <li><a href="/policies/">Policies</a></li>
+      <li><a href="/policies-vex/">Producer statements (VEX)</a></li>
+      <li><a href="/policies-context/">Deployment context</a></li>
+      <li><a href="/policies-whatif/">Try a policy first</a></li>
+      <li><a href="/deny-list/">Deny list</a></li>
+      <li><a href="/mitigations/" aria-current="page">Known temporary mitigations</a></li>
+      <li><a href="/admission/">Admission</a></li>
+      <li><a href="/air-gapped/">Air-gapped clusters</a></li>
+      <li><a href="/verify-enforcement/">Prove it is enforcing</a></li>
+      <li><a href="/operations/">Operations and alerting</a></li>
+      <li><a href="/upgrade/">Upgrade</a></li>
+      <li><a href="/backup/">Backup and restore</a></li>
+    </ul>
+    <h2>Integrations</h2>
+    <ul>
+      <li><a href="/runtime-events/">Runtime events (Falco)</a></li>
+      <li><a href="/issue-trackers/">Issue trackers</a></li>
+      <li><a href="/siem/">SIEM export</a></li>
+    </ul>
+    <h2>Evidence and help</h2>
+    <ul>
+      <li><a href="/evidence-trust/">Evidence trust model</a></li>
+      <li><a href="/compliance/">Compliance frameworks</a></li>
+      <li><a href="/verifying-reports/">Verifying a report</a></li>
+      <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      <li><a href="/support/">Support and security</a></li>
+      <li><a href="/releases/">Releases</a></li>
+    </ul>
+  </nav>
+
+  <main class="content" id="content">
+    <h1>Known temporary mitigations</h1>
+<p class="lede">Some CVEs are published before a fixed version exists, with a temporary measure to take until it does. Attestkeep can show that measure beside the CVE, list the images that carry it while no fix is released, and read the pods running them to say whether the measure is in their spec.</p>
+
+<p>Both switches are in <strong>Settings › Scanning › Mitigations</strong>, for administrators, and both are off as shipped.</p>
+
+<div class="note">
+  <p><strong>Off, nothing changes.</strong> With both switches off, no mitigation, band or pod check appears in the console or the API. On, counts, policy decisions and evidence packages still do not change. Attestkeep never applies a mitigation and never changes a pod.</p>
+</div>
+
+<h2>The two switches</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Switch</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Show known temporary mitigations</strong></td><td>Shows a listed CVE's mitigation on Vulnerabilities and in the Images drawer, and the <a href="#fix-not-released-yet">Fix not released yet</a> band.</td></tr>
+    <tr><td><strong>Check running pods</strong></td><td>When such a CVE or image is opened, reads the spec of each pod running it: the <a href="#pod-check">pod check</a>. It can be on only with the first switch; turning the first off turns it off too.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>A change is written to the audit log as <code>settings_change</code>. Your own page follows at once after you save; other open tabs and other people see the change after reloading the page.</p>
+
+<h2>The list</h2>
+
+<p>The list ships with Attestkeep, inside the operator binary, and changes only with a release. Each entry names its CVEs, says what to do until the fixed version is installed, cites its sources and gives the date it was last reviewed. The note appears in a CVE's detail on Vulnerabilities and beside the finding in the Images drawer.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>CVE</th><th>Mitigation</th><th>Sources</th><th>Reviewed</th></tr></thead>
+  <tbody>
+    <tr><td><code>CVE-2026-114938</code></td><td><strong>Turn off the HotSpot Base64 intrinsic.</strong> Until the JDK is upgraded past the affected versions (17.0.21.0.3, 21.0.13.0.3, 25.0.5.0.3, 27.0.1.0.3 and earlier), start the JVM with <code>-XX:-UseBASE64Intrinsics</code>, for example by adding it to <code>JAVA_TOOL_OPTIONS</code>. Only x86-64 CPUs with avx512f, avx512bw, avx512vbmi and bmi2 are affected; ARM64 is not. This is a temporary measure, not a fix. Measure the performance effect.</td><td><a href="https://openjdk.org/groups/vulnerability/advisories/2026-11-17" rel="noopener">OpenJDK advisory 2026-11-17</a>, <a href="https://access.redhat.com/security/cve/cve-2026-114938" rel="noopener">Red Hat CVE-2026-114938</a>, <a href="https://www.wiz.io/blog/cve-2026-114938-rce-java4shell-openjdk" rel="noopener">Wiz: CVE-2026-114938 (Java4Shell)</a>, <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-114938" rel="noopener">NVD CVE-2026-114938 (CWE-122)</a>, <a href="https://docs.oracle.com/en/java/javase/21/docs/specs/jvmti.html#tooloptions" rel="noopener">JVM TI: JAVA_TOOL_OPTIONS</a></td><td>2026-11-19</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>The note rides on a finding. An image Attestkeep has not scanned, such as one in a namespace the admission webhook bypasses, shows nothing, and no finding does not mean not affected.</p>
+
+<h2 id="fix-not-released-yet">Fix not released yet</h2>
+
+<p>With <code>include_unfixed</code> off, the default, a finding with no released fix is kept out of every count and list. A CVE on the list among those findings is the one that most needs to be seen, so it gets a band of its own above the Vulnerabilities list: the CVE, the worst severity among its images, how many images carry it, the mitigation and, with the pod check on, the pods. The Images drawer shows the same band for its image.</p>
+
+<ul>
+  <li>The band is in no count, no policy decision and no evidence package.</li>
+  <li>On Vulnerabilities it does not follow the page's filters and search: it always lists every such CVE.</li>
+  <li>If the band cannot be read, the page is shown without it and the operator logs why.</li>
+</ul>
+
+<h2 id="pod-check">Pod check</h2>
+
+<p>With <strong>Check running pods</strong> on, opening such a CVE on Vulnerabilities, or an image that carries one in the Images drawer, reads the cluster's pods at that moment and lists every container running an affected image, matched by the digest the node reports. Nothing is stored.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Pod spec</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Found in pod spec</strong></td><td>The flag is in <code>JAVA_TOOL_OPTIONS</code> (read by the JVM itself), in <code>JDK_JAVA_OPTIONS</code> (read only by the <code>java</code> launcher, so not by a JVM started another way), or among the options of a <code>java</code> command the container runs: its command, or a <code>java</code> command inside its <code>sh -c</code> script. A flag after <code>-jar &lt;file&gt;</code> or after the main class is the application's argument and does not count.</td></tr>
+    <tr><td><strong>Found in JAVA_OPTS_APPEND</strong>, <strong>Found in JAVA_OPTS</strong></td><td>The flag is in a variable only the image's start script reads. Whether it reaches the JVM depends on that script.</td></tr>
+    <tr><td><strong>Found in container args</strong></td><td>The flag is in arguments handed to the image's entrypoint, or to a program that is not <code>java</code>. Whether it reaches the JVM depends on that program.</td></tr>
+    <tr><td><strong>Not found in pod spec</strong></td><td>The pod spec does not name the flag. This does not mean unprotected: see <a href="#blind-spots">what the check cannot see</a>.</td></tr>
+    <tr><td><strong>Cannot tell</strong></td><td>Part of what the JVM will see is not in the pod spec as text, and the reason is named: <code>envFrom</code> is not read; the variable comes from a reference (<code>valueFrom</code>) that is not read; a <code>$(VAR)</code> reference is not expanded; an options file is used (<code>@argfile</code> or <code>-XX:VMOptionsFile</code>); the flag and its opposite (<code>-XX:+UseBASE64Intrinsics</code>) are both set; or the flag is in a shell script but not among a <code>java</code> command's options.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p><code>_JAVA_OPTIONS</code> is read only for the opposite flag: <code>-XX:+UseBASE64Intrinsics</code> there, with the flag set elsewhere, makes the answer <strong>Cannot tell</strong>. The flag in <code>_JAVA_OPTIONS</code> alone is not counted.</p>
+
+<h3>Which containers are listed</h3>
+
+<ul>
+  <li>Every running container of a running pod, init and ephemeral containers included.</li>
+  <li>A container in a crash loop, listed as <strong>waiting to restart</strong>.</li>
+  <li>An init container that completed, listed as <strong>init container, ran and finished</strong> with the time.</li>
+  <li>Not listed: a pod that has finished (Succeeded or Failed) or is being deleted, and any other container that has stopped and will not be started again.</li>
+</ul>
+
+<p>The read stops at the limits of the deny list's What if (<code>denyListWhatIfLimits</code>, by default 20 seconds or 20,000 pods) and then says the answer is partial.</p>
+
+<h3>What it reads</h3>
+
+<ul>
+  <li>Pod objects only: each container's <code>env</code>, <code>envFrom</code>, <code>command</code> and <code>args</code>, and its status. A variable's value is read in memory only to answer whether the flag is in it. The answer names the variable, never its value, and the value is not logged or stored.</li>
+  <li>Never a Secret or a ConfigMap. A variable that comes from one is <strong>Cannot tell</strong>.</li>
+  <li>No new permission: the operator's existing cluster-wide pod read covers it (see <a href="/what-runs/">What runs in your cluster</a>).</li>
+</ul>
+
+<h3 id="blind-spots">What the check cannot see</h3>
+
+<ul>
+  <li>A flag set inside the image: in its <code>ENV</code>, or added by its start script. The pod spec does not carry either, so such a container reads <strong>Not found in pod spec</strong>.</li>
+  <li>Values from <code>envFrom</code> or <code>valueFrom</code>: <strong>Cannot tell</strong>.</li>
+  <li>Options files (<code>@argfile</code>, <code>-XX:VMOptionsFile</code>): <strong>Cannot tell</strong>.</li>
+  <li>What a start script does with <code>JAVA_OPTS_APPEND</code>, <code>JAVA_OPTS</code> or the container's args: the answer says it depends on the script.</li>
+  <li>The JVM's own flags at run time. The check reads what the pod spec gives the container, not the running process.</li>
+</ul>
+
+<h2 id="worth-a-look">Worth a look</h2>
+
+<p>The pod check's <strong>Last restart</strong> column shows a container's restart count. When the last termination was SIGSEGV or SIGABRT (exit 139 or 134) and the entry's CVE is a memory-corruption one, as CVE-2026-114938 is (CWE-122), it reads <strong>Worth a look</strong> with the signal, the exit code and when.</p>
+
+<ul>
+  <li>It is not proof of an attack. Most crashes are not attacks, and an attack need not crash anything.</li>
+  <li>An out-of-memory kill (<code>OOMKilled</code>) is never flagged, and neither are SIGKILL and SIGTERM (137, 143).</li>
+  <li>The kubelet keeps only the last termination, so an earlier crash is not seen.</li>
+  <li>It is shown in the console only: no notification, and nothing in the evidence package.</li>
+</ul>
+
+<h2>With Falco</h2>
+
+<p>A temporary mitigation acts before anyone exploits the CVE. If you run Falco, the rule template <strong>Java process spawned a shell</strong> (<strong>Falco › Rules › From template</strong>) raises an event when a JVM starts a shell in a container, and says what it does not catch. See <a href="/runtime-events/#rule-templates">Runtime events</a>.</p>
+
+<h2>API</h2>
+
+<ul>
+  <li><code>GET /api/v1/settings/mitigations</code> (any signed-in account) and <code>PUT</code> (administrators), body <code>{"hints": true, "check_pods": false}</code>. <code>check_pods</code> without <code>hints</code>, an unknown field, a value that is not <code>true</code> or <code>false</code>, or anything but one JSON object is refused with <code>400</code>.</li>
+  <li><code>GET /api/v1/vulnerabilities</code> and <code>GET /api/v1/images/detail</code>: with <code>hints</code> on, a listed CVE's row carries <code>mitigation</code> (<code>id</code>, <code>title</code>, <code>text</code>, <code>sources</code>, <code>reviewed_at</code>), and the answer carries <code>unfixed_with_mitigation</code>, the band.</li>
+  <li><code>GET /api/v1/mitigations/check?cve=CVE-…</code>, or <code>?digest=sha256:…</code> repeated up to 50 times, not both: <code>read_at</code>, <code>pods_inspected</code>, <code>partial</code>, <code>note</code>, <code>hint_ids</code> and <code>rows</code> (<code>digest</code>, <code>namespace</code>, <code>pod</code>, <code>container</code>, <code>hint_id</code>, <code>state</code>, <code>source</code>, <code>reason</code>, <code>running</code>, <code>restart_count</code>, <code>finished</code>, <code>finished_at</code>, <code>crash</code>). No field carries a variable's value. <code>409</code> while the pod check is off; <code>400</code> for a malformed CVE id or digest.</li>
+</ul>
+    <footer class="content__foot">
+      <p>Attestkeep — container image security for Kubernetes.</p>
+      <p><a href="https://attestkeep.com/">attestkeep.com</a> · <a href="https://github.com/attestkeep/attestkeep-docs/issues">Report a problem</a> · <a href="https://attestkeep.com/security.html">Security disclosure</a></p>
+    </footer>
+  </main>
+</div>
+
+<script src="/assets/docs.js" defer></script>
+</body>
+</html>
