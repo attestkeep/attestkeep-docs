@@ -167,7 +167,7 @@ kubectl -n attestkeep scale deploy/attestkeep-scanner --replicas=1</code></pre>
 
 <h2>What a restore means for your evidence</h2>
 
-<p>Everything recorded after the dump was taken is gone, and the evidence package does not pretend otherwise. The operator stamps a heartbeat as it runs; on the first pass after a restore it finds the last stamp at dump age and records the whole span since as a window in which the control was not operating. A period report covering it shows the gap, exactly as it shows any other outage.</p>
+<p>Everything recorded after the dump was taken is gone, and the evidence package does not pretend otherwise. The operator stamps a heartbeat as it runs; on the first pass after a restore it finds the last stamp at dump age and records the whole span since as a window in which the control was not operating, or could not be shown to be operating. A period report covering it shows the gap, exactly as it shows any other outage.</p>
 
 <p>That is the honest cost of restoring from backup: you get your history back up to the dump, and the document says plainly where history is missing. A restore that could silently paper over the lost window would be a way to rewrite the record, and this product's evidence would be worth less for having it.</p>
     <footer class="content__foot">

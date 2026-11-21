@@ -104,4 +104,10 @@ helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
 
 <pre><code>helm uninstall attestkeep --namespace attestkeep</code></pre>
 
-<p>Removing the release removes the webhook configuration with it, so admission stops being reviewed the moment it is gone. The database volume is not deleted; findings and evidence survive an uninstall unless you remove the PVC yourself.</p>
+<p>Removing the release removes the webhook configuration with it, so admission stops being reviewed the moment it is gone. The database volume is not deleted; findings and evidence survive an uninstall unless you remove the PVC yourself. From 1.4.2 the uninstall also keeps the four CRDs, and with them your policies and reports, and the Secrets <code>attestkeep-postgresql</code> and <code>attestkeep-data-key</code>, and a reinstall under the same release name in the same namespace reads the kept Secrets back, so it opens the kept database. To remove them on purpose:</p>
+
+<pre><code>kubectl delete crd imagesecuritypolicies.attestkeep.com imagesecurityreports.attestkeep.com \
+  attestationrenewals.attestkeep.com imagesecurityusages.attestkeep.com
+kubectl -n attestkeep delete secret attestkeep-postgresql attestkeep-data-key</code></pre>
+
+<p>Deleting a CRD deletes every object of its kind. Delete the PostgreSQL Secret only together with the database volume, and the data key only when the database it served is gone as well.</p>

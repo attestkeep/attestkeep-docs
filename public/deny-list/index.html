@@ -175,7 +175,7 @@
 
 <pre><code>denied by deny list entry 7: package maven org.apache.logging.log4j:log4j-core &lt; 2.17.1</code></pre>
 
-<p>The rules that need no registry call — the allowed-registry list, <code>blockLatestTag</code>, a required digest — are checked first. Under an enforcing policy their refusal stands on its own; under an Audit policy the review goes on to the deny list, so a listed image is refused there too.</p>
+<p>The rules that need no registry call — the allowed-registry list, <code>blockLatestTag</code>, a required digest — are checked first. Under an enforcing policy their refusal stands on its own, and no call goes to a registry the allow-list keeps out; under an Audit policy the review goes on to the deny list, so a listed image is refused there too. That includes a tag from a registry the allow-list keeps out: the operator looks its digest up at that registry, as for any other image (before 1.4.2 such a tag was admitted with <code>deny list not evaluated: registry not allowed</code>).</p>
 
 <p>The policy's <code>denyList</code> field:</p>
 

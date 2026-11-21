@@ -14,11 +14,19 @@
 <p>Pin the version if your change process needs it:</p>
 
 <pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
-  --namespace attestkeep --version 1.4.1 --wait</code></pre>
+  --namespace attestkeep --version 1.4.2 --wait</code></pre>
 
 <h2>What happens to the database</h2>
 
 <p>Each migration is recorded when it runs, so it runs exactly once no matter how many replicas start at the same time. Findings, decisions, exceptions and evidence survive the upgrade; nothing is rebuilt from scratch.</p>
+
+<h2>1.4.1 to 1.4.2</h2>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 1.4.2 \
+  --namespace attestkeep --wait</code></pre>
+
+<p>Migrations <code>0049</code> to <code>0052</code> are applied on the first start of the new version. <code>0051</code> builds a unique index on the admission ledger, and every read and write of <code>admissions</code> waits until it is built (seconds per few million rows); on an installation with a large ledger, upgrade when few pods are being created. No new permissions and no new chart values; <code>helm upgrade --reuse-values</code> works across this version. The chart's CRDs are templates, so <code>helm upgrade</code> applies the new optional field <code>spec.triage[].scopeImage</code> and the <code>helm.sh/resource-policy: keep</code> annotations; from then on <code>helm uninstall</code> keeps the CRDs and the PostgreSQL and data-key Secrets. The first controller pass rewrites every report's <code>spec.triage</code> as a copy of the console's triage decisions, removing entries <code>kubectl image-security triage create</code> wrote; that command is removed. An image scanned before the upgrade whose signature did not verify reads Signature state not recorded (or Signature not verified, when 1.4.1 recorded that) until its next scan. See <a href="/releases/">the 1.4.2 notes</a>.</p>
 
 <h2>1.4.0 to 1.4.1</h2>
 
