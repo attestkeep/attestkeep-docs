@@ -14,11 +14,19 @@
 <p>Pin the version if your change process needs it:</p>
 
 <pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
-  --namespace attestkeep --version 1.4.2 --wait</code></pre>
+  --namespace attestkeep --version 1.4.3 --wait</code></pre>
 
 <h2>What happens to the database</h2>
 
 <p>Each migration is recorded when it runs, so it runs exactly once no matter how many replicas start at the same time. Findings, decisions, exceptions and evidence survive the upgrade; nothing is rebuilt from scratch.</p>
+
+<h2>1.4.2 to 1.4.3</h2>
+
+<pre><code>helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 1.4.3 \
+  --namespace attestkeep --wait</code></pre>
+
+<p>No migrations, no new permissions and no new chart values. The chart's templates and CRDs are the ones 1.4.2 ships; the image is what changes.</p>
 
 <h2>1.4.1 to 1.4.2</h2>
 

@@ -14,7 +14,21 @@ that cannot reach the transparency log. Verify the digest, not the tag.
 
 ```sh
 curl -sO https://docs.attestkeep.com/cosign.pub
-cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:1.4.2
+cosign verify --key cosign.pub ghcr.io/attestkeep/attestkeep-k8s:1.4.3
+```
+
+## 1.4.3 — 2026-11-24
+
+**Fixed — two vulnerabilities in the OpenTelemetry Go SDK that the operator's code can reach; upgrade.** The operator is built with OpenTelemetry Go 1.47.0 instead of 1.45.0. That release fixes memory allocation amplification when a W3C `baggage` header is parsed (CVE-2026-128086, GO-2026-6975) and a way around the limit on the length of attribute values (CVE-2026-128085, GO-2026-6974). Both were published on 2026-11-23, and govulncheck reports both as reachable in 1.4.2. The OTLP exporters are the versions 1.4.2 carries, and no telemetry setting changes.
+
+**Changed — Trivy 0.76.2.** The bundled scanner moves from 0.76.1 to 0.76.2, a security release of Trivy: its binary is built with `golang.org/x/net` 0.62.0 (CVE-2026-78661, CVE-2026-97045) and `go-jose` 4.1.6 (GHSA-mgcc-cww5-fp2q). cosign stays at 3.1.4.
+
+No migrations, no new permissions and no new chart values; the chart's templates and CRDs are the ones 1.4.2 ships.
+
+```sh
+helm upgrade attestkeep oci://ghcr.io/attestkeep/charts/attestkeep \
+  --version 1.4.3 \
+  --namespace attestkeep --wait
 ```
 
 ## 1.4.2 — 2026-11-21
